@@ -9,8 +9,7 @@ result is settled against on-chain-anchored data, so the house can't cheat. Free
 **TxLINE (TxOdds)** and **Solana**.
 
 Headline: the app is wired to the **real TxLINE World Cup feed**. The featured match is the
-**Spain vs Argentina final**, showing the real de-margined win-probability (about **Spain 42% / Draw 31% /
-Argentina 27%**), and the lobby links to **all 30 finished knockout matches** with their real scores.
+**Spain vs Argentina final**, and the lobby links to **all 30 finished knockout matches** with their real scores.
 
 ## The tournament (all real TxLINE data)
 
