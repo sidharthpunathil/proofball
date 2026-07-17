@@ -121,29 +121,28 @@ the real fixtures.
 
 ## Project layout
 
-```
-app/                    routes: / (lobby), /results, /match/[id], /api/txline/*, /api/predict/*,
-                                /api/leaderboard, /api/og
-components/             UI (MatchScreen, ProbabilityNeedle, PredictControl, MatchOver, ResultCard, ...)
-lib/txline-fixtures.ts  real fixtures: getFixtures() (Redis-cached), buildRealReplay(), odds cache
-lib/txline-live.ts      live TxLINE stream normalisation
-lib/txline-auth.ts      guest JWT + API token (server-side)
-lib/store.ts            zustand match/game state + shared-leaderboard sync
-lib/db.ts               Postgres pool + schema (finished-match cache)
-lib/matches.ts          read finished matches from Postgres (getFinishedMatches, getDbMatch)
-lib/redis.ts            Redis client + JSON cache helpers (graceful)
-lib/leaderboard.ts      global leaderboard (Redis ZSET): submitScore, topLeaders, getUserScore
-lib/economy.ts          the $PROOF economy in one file (airdrop, entry, rake)
-lib/token.ts            server-side $PROOF SPL helpers (mint authority = fee-payer)
-lib/pool.ts             parimutuel pool settlement (settlePool), tested in tests/pool.test.ts
-scripts/create-token.ts one-time $PROOF mint creation (npm run token:create)
-scripts/set-token-metadata.ts  attach name/symbol/logo to the mint (npm run token:metadata)
-docs/EARN.md            earning + $PROOF + the pool, plain and technical
-docs/WHITEPAPER.md      the product whitepaper (PDF: docs/ProofBall-Whitepaper.pdf)
-lib/teams.ts            nation abbr + colour metadata for the full field
-lib/winprob.ts          odds→prob, plus simInPlayProbs() for the finished-match replay simulation
-scripts/sync-matches.mjs  TxLINE → Postgres sync (npm run matches:sync)
-docker-compose.yml      Postgres + Redis (odd ports 55432 / 63799)
-docs/DATA.md            where every on-screen number comes from
-docs/FLOW.md            data flow, storage map, environment
-```
+| Path | What it does |
+| --- | --- |
+| `app/` | routes: `/` (lobby), `/results`, `/match/[id]`, `/api/txline/*`, `/api/predict/*`, `/api/leaderboard`, `/api/og` |
+| `components/` | UI (MatchScreen, ProbabilityNeedle, PredictControl, MatchOver, ResultCard, …) |
+| `lib/txline-fixtures.ts` | real fixtures: `getFixtures()` (Redis-cached), `buildRealReplay()`, odds cache |
+| `lib/txline-live.ts` | live TxLINE stream normalisation |
+| `lib/txline-auth.ts` | guest JWT + API token (server-side) |
+| `lib/store.ts` | zustand match/game state + shared-leaderboard sync |
+| `lib/db.ts` | Postgres pool + schema (finished-match cache) |
+| `lib/matches.ts` | read finished matches from Postgres (`getFinishedMatches`, `getDbMatch`) |
+| `lib/redis.ts` | Redis client + JSON cache helpers (graceful) |
+| `lib/leaderboard.ts` | global leaderboard (Redis ZSET): `submitScore`, `topLeaders`, `getUserScore` |
+| `lib/economy.ts` | the $PROOF economy in one file (airdrop, entry, rake) |
+| `lib/token.ts` | server-side $PROOF SPL helpers (mint authority = fee-payer) |
+| `lib/pool.ts` | parimutuel pool settlement (`settlePool`), tested in `tests/pool.test.ts` |
+| `lib/teams.ts` | nation abbr + colour metadata for the full field |
+| `lib/winprob.ts` | odds→prob, plus `simInPlayProbs()` for the finished-match replay simulation |
+| `scripts/create-token.ts` | one-time $PROOF mint creation (`npm run token:create`) |
+| `scripts/set-token-metadata.ts` | attach name/symbol/logo to the mint (`npm run token:metadata`) |
+| `scripts/sync-matches.mjs` | TxLINE → Postgres sync (`npm run matches:sync`) |
+| `docker-compose.yml` | Postgres + Redis (odd ports 55432 / 63799) |
+| `docs/EARN.md` | earning + $PROOF + the pool, plain and technical |
+| `docs/WHITEPAPER.md` | the product whitepaper (PDF: `docs/ProofBall-Whitepaper.pdf`) |
+| `docs/DATA.md` | where every on-screen number comes from |
+| `docs/FLOW.md` | data flow, storage map, environment |

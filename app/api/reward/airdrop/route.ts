@@ -4,11 +4,12 @@ import { mintProof, proofBalance, proofMint, explorerTx } from "@/lib/token";
 import { getRedis, rateLimit, clientIp } from "@/lib/redis";
 import { resolveWallet } from "@/lib/auth";
 import { PROOF } from "@/lib/economy";
+import { recordAirdrop, getAirdropRecord } from "@/lib/airdrops";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// SET of wallets that already received the welcome airdrop (once per wallet).
+// SET of wallets that have claimed a welcome-airdrop slot (also counts the cap).
 const KEY = "proofball:airdropped";
 
 /** GET /api/reward/airdrop?wallet=X -> the wallet's on-chain $PROOF balance. */
@@ -22,8 +23,18 @@ export async function GET(req: Request) {
 
 /**
  * POST { wallet } -> mints the one-time welcome airdrop of $PROOF to a fresh
- * wallet. Idempotent: `sadd` returns 1 only the first time, so a wallet can
- * never be airdropped twice even under concurrent calls.
+ * wallet. Idempotent across THREE independent guards, because the mint is real
+ * on-chain value and a single flag is not enough:
+ *   1. Atomic SADD claim (below): the same wallet can't claim two slots, even
+ *      under concurrent calls.
+ *   2. On-chain balance gate: we never mint to a wallet that already holds the
+ *      airdrop. This is the DURABLE source of truth — it survives a wiped Redis
+ *      SET and a prior mint that landed on-chain but timed out on confirmation.
+ *   3. Error handling that never re-opens a landed mint: on a mint error we
+ *      re-read the balance and only release the slot when nothing was minted.
+ * (2)+(3) close the double-airdrop bug: the old code did `srem` on any error,
+ * so a confirmation timeout on a mint that actually landed freed the slot and a
+ * reconnect minted a second time.
  */
 export async function POST(req: Request) {
   if (!proofMint()) {
@@ -80,6 +91,19 @@ return redis.call('SCARD', KEYS[1])`;
   if (position === -1) {
     // Already processed once (airdropped, or already counted past the cap). Never repeat.
     const balance = await proofBalance(wallet);
+    // Backfill the ledger for wallets that were airdropped before we kept records,
+    // so reconnecting an old wallet still lands it in the audit trail exactly once.
+    if (balance >= PROOF.airdrop && !(await getAirdropRecord(wallet))) {
+      await recordAirdrop({
+        wallet,
+        amount: PROOF.airdrop,
+        position: null,
+        ts: Date.now(),
+        signature: null,
+        status: "already-funded",
+        balance,
+      });
+    }
     return NextResponse.json({ airdropped: false, amount: PROOF.airdrop, balance });
   }
   if (position > PROOF.airdropCap) {
@@ -100,9 +124,42 @@ return redis.call('SCARD', KEYS[1])`;
     return NextResponse.json({ error: "airdrop temporarily paused, try later" }, { status: 429 });
   }
 
+  // DURABLE guard (source of truth): never mint to a wallet that already holds the
+  // airdrop. On-chain balance survives a wiped Redis SET AND a prior mint that landed
+  // on-chain but timed out on confirmation — both of which previously let the same
+  // wallet be airdropped a second time. (This wallet just claimed a fresh SADD slot,
+  // so an existing balance means the SET didn't remember it — fund-once still holds.)
+  const prior = await proofBalance(wallet);
+  if (prior >= PROOF.airdrop) {
+    await recordAirdrop({
+      wallet,
+      amount: PROOF.airdrop,
+      position,
+      ts: Date.now(),
+      signature: null,
+      status: "already-funded",
+      balance: prior,
+    });
+    return NextResponse.json({
+      airdropped: false,
+      alreadyFunded: true,
+      amount: PROOF.airdrop,
+      balance: prior,
+    });
+  }
+
   try {
     const signature = await mintProof(wallet, PROOF.airdrop);
     const balance = await proofBalance(wallet);
+    await recordAirdrop({
+      wallet,
+      amount: PROOF.airdrop,
+      position,
+      ts: Date.now(),
+      signature,
+      status: "airdropped",
+      balance,
+    });
     return NextResponse.json({
       airdropped: true,
       amount: PROOF.airdrop,
@@ -113,7 +170,39 @@ return redis.call('SCARD', KEYS[1])`;
       balance,
     });
   } catch (e) {
-    // Roll back so the user can retry and the slot is not consumed.
+    // A mint that THREW may still have LANDED on-chain: spl-token confirms against a
+    // blockhash window that can lapse while the tx confirms a moment later. Re-read the
+    // balance before deciding. If the airdrop is there, KEEP the claim and record it —
+    // do NOT `srem` (removing it is exactly what let a reconnect mint a second 1000).
+    // Only release the slot when nothing landed, so a genuine pre-mint failure (e.g.
+    // fee-payer out of SOL) can still be retried without ever double-minting.
+    let landed = 0;
+    try {
+      landed = await proofBalance(wallet);
+    } catch {
+      /* if we can't read the balance, assume it may have landed and keep the slot */
+      landed = PROOF.airdrop;
+    }
+    if (landed >= PROOF.airdrop) {
+      await recordAirdrop({
+        wallet,
+        amount: PROOF.airdrop,
+        position,
+        ts: Date.now(),
+        signature: null,
+        status: "landed-late",
+        balance: landed,
+      });
+      return NextResponse.json({
+        airdropped: true,
+        amount: PROOF.airdrop,
+        position,
+        cap: PROOF.airdropCap,
+        balance: landed,
+        note: "confirmation timed out but the airdrop landed on-chain",
+      });
+    }
+    // Nothing was minted → safe to release the slot for a real retry.
     try {
       await r.srem(KEY, wallet);
     } catch {

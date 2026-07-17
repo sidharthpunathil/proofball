@@ -1,9 +1,13 @@
 // The ProofBall sonic palette.
 //
-// Each entry is a recipe that schedules a short cluster of notes/noise on the
-// engine. Everything is pitched to the A-minor-pentatonic table in engine.ts,
-// so sounds that overlap in time stay consonant. Volumes are deliberately low
-// — UI sound is seasoning, not a soundtrack.
+// Each entry is a recipe that schedules a short cluster of struck-object voices
+// on the engine. One instrument, three materials: ratio 1 = warm wood (tactile
+// cues), 2 = clean octave bell (rewards), 3/3.5 = glass sparkle (coin/copy/
+// welcome shimmer), 1.41 = inharmonic metal (the lone tension colour, red card).
+// Everything is pitched to the A-minor-pentatonic table in engine.ts so overlaps
+// stay consonant, everything is struck (never faded-in) and humanized per trigger
+// so no two hits are identical, and it all sits in one short room. Volumes are
+// deliberately low — UI sound is seasoning, not a soundtrack.
 
 import { engine, NOTES, SCALE_UP } from "./engine";
 
@@ -209,9 +213,15 @@ const THROTTLE: Partial<Record<SoundName, number>> = {
   goal: 300,
 };
 
-/** Play a sound by name. No-ops silently when muted / locked / suppressed. */
+/** Play a sound by name. No-ops silently when muted / locked / suppressed.
+ *  Never throws: sound is cosmetic and must not be able to break the click
+ *  handler it is called from (e.g. wallet select, a pick, nav). */
 export function playSound(name: SoundName, opts: PlayOpts = {}): void {
-  if (!engine.gate(name, THROTTLE[name] ?? 0)) return;
-  const recipe = RECIPES[name];
-  if (recipe) recipe(opts);
+  try {
+    if (!engine.gate(name, THROTTLE[name] ?? 0)) return;
+    const recipe = RECIPES[name];
+    if (recipe) recipe(opts);
+  } catch {
+    /* audio is best-effort; swallow any Web Audio hiccup */
+  }
 }

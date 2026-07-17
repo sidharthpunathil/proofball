@@ -81,7 +81,7 @@ describe("prediction flow: open → pick → lock → settle", () => {
     const end = useStore.getState();
     expect(end.history[0].status).toBe("lost");
     expect(end.streak).toBe(0);
-    expect(end.coins).toBe(500); // no reward
+    expect(end.coins).toBe(480); // wrong call loses the 20-coin stake (500 → 480)
   });
 
   it("a 'falling' call wins when probability drops", () => {

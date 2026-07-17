@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { springPop, tweenBase, tweenFast } from "@/lib/motion";
+import { AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useSpring } from "framer-motion";
+import { springPop, springSoft, tweenBase, tweenFast } from "@/lib/motion";
 import { useStore } from "@/lib/store";
 import { useFixture } from "@/lib/fixture-context";
-import { User, ChevronLeft, Check } from "./Icons";
+import { User, ChevronLeft, Check, Coin } from "./Icons";
 import ThemeToggle from "./ThemeToggle";
 import MuteButton from "./MuteButton";
 import { playSound } from "@/lib/sound";
@@ -25,6 +25,7 @@ export default function AppHeader() {
   const fixture = useFixture();
   const user = useStore((s) => s.user);
   const streak = useStore((s) => s.streak);
+  const coins = useStore((s) => s.coins);
   const phase = useStore((s) => s.phase);
   const live = phase !== "FT" && phase !== "PRE";
   const reduce = useReducedMotion();
@@ -125,7 +126,7 @@ export default function AppHeader() {
       <Link
         href="/"
         onClick={() => playSound("navTap")}
-        className="mx-auto flex h-8 min-w-0 max-w-[46%] items-center gap-2 rounded-full border border-line bg-surface px-3 shadow-soft transition-[transform,border-color] hover:border-line2 active:scale-[0.97]"
+        className="mx-auto flex h-8 min-w-0 max-w-[40%] items-center gap-2 rounded-full border border-line bg-surface px-3 shadow-soft transition-[transform,border-color] hover:border-line2 active:scale-[0.97]"
       >
         <ChevronLeft size={14} className="shrink-0 text-mut" />
         <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: fixture.home.color }} />
@@ -137,9 +138,39 @@ export default function AppHeader() {
       </Link>
 
       <div className="flex shrink-0 items-center gap-1.5">
+        {/* Live score: your leaderboard balance, always on screen so you watch it
+            move on every call (ticks up on a win, down on a wrong call). */}
+        {user && <CoinBalance coins={coins} />}
         <MuteButton className="h-10 w-10" />
         <ThemeToggle className="h-10 w-10" />
       </div>
     </motion.div>
+  );
+}
+
+// The running balance, count-up animated so a settle visibly ticks the number
+// rather than snapping. Same spring approach as the Earn balance hero.
+function CoinBalance({ coins }: { coins: number }) {
+  const reduce = useReducedMotion();
+  const spring = useSpring(coins, springSoft);
+  const [display, setDisplay] = useState(coins);
+  useEffect(() => {
+    if (reduce) {
+      spring.jump(coins);
+      setDisplay(coins);
+    } else {
+      spring.set(coins);
+    }
+  }, [coins, reduce, spring]);
+  useMotionValueEvent(spring, "change", (v) => setDisplay(Math.round(v)));
+
+  return (
+    <div
+      title="Your score"
+      className="flex h-8 shrink-0 items-center gap-1 rounded-full border border-line bg-surface px-2.5 shadow-soft"
+    >
+      <Coin size={13} className="text-amber" />
+      <span className="tabular-nums text-[13px] font-bold text-ink">{display.toLocaleString()}</span>
+    </div>
   );
 }

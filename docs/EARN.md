@@ -65,10 +65,25 @@ All numbers live in `lib/economy.ts` (`PROOF`), so the whole game retunes from o
 
 ### The welcome airdrop
 - `POST /api/reward/airdrop` with `{ wallet }` mints the one-time welcome airdrop.
-- **Idempotent by construction:** a Redis set `proofball:airdropped` records who has been
-  paid. `SADD` returns 1 only the first time, so a wallet can never be airdropped twice,
-  even under concurrent requests. If the mint fails, the marker is rolled back so the user
-  can retry.
+- **Fund-once, across three independent guards** (a single flag is not enough for real
+  on-chain value):
+  1. **Atomic claim** — a Redis set `proofball:airdropped`; one `SADD`+`SCARD` Lua call so
+     the same wallet can't claim two slots even under concurrent requests, and it doubles as
+     the cap counter.
+  2. **On-chain balance gate** — before minting we read the wallet's $PROOF balance; if it
+     already holds ≥ the airdrop, we never mint again. This is the durable source of truth:
+     it survives a wiped/restarted Redis **and** a prior mint that landed on-chain but timed
+     out on confirmation.
+  3. **Safe error handling** — a mint can *throw on confirmation yet still land* (spl-token
+     confirms against a blockhash window that can lapse). On error we re-read the balance and
+     only release the slot when nothing was minted. We do **not** blindly `srem` — that older
+     behavior is exactly what let a confirmation timeout free the slot and a reconnect mint a
+     second 1,000 (→ 2,000).
+- **Audit ledger:** every airdrop is written to a Redis hash `proofball:airdrops`
+  (`lib/airdrops.ts`) with `{ wallet, amount, position, ts, signature, status, balance }`.
+  Inspect it with `npm run airdrops` (CLI) or `GET /api/admin/airdrops` (gated by the
+  `ADMIN_TOKEN` secret). A recorded `balance` above the airdrop amount flags a pre-fix
+  double-mint.
 - The client fires this automatically inside `store.signIn` (see `lib/store.ts`). On the
   first airdrop the store sets `welcome`, which drives the `WelcomeToast` component
   ("We airdropped you 1,000 $PROOF").

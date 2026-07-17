@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { WalletReadyState } from "@solana/wallet-adapter-base";
+import { WalletReadyState, type WalletName } from "@solana/wallet-adapter-base";
 import { useStore } from "@/lib/store";
 import { playSound } from "@/lib/sound";
 import { DUR, EASE_OUT, springPop, listContainer, listItem } from "@/lib/motion";
@@ -43,23 +43,56 @@ export default function SignInGate() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  // Wallet connected: your public key is your identity. No password, no mock.
+  // We only ever auto-connect right after the user taps a wallet in the gate.
+  // Being "selected but not connected" is also the state that Sign out and an
+  // in-wallet account switch leave you in — reconnecting on that state alone
+  // (the old behaviour) made disconnect impossible and spammed the approve
+  // popup. autoConnect on the provider still restores the session on reload.
+  const wantConnectRef = useRef(false);
+
+  // Identity always mirrors the *currently connected* key. Signs in on the first
+  // connect, and re-signs when the wallet switches to a different account (a
+  // Phantom account switch changes publicKey in place), so the stored address
+  // never goes stale — settles and airdrops always target the live wallet.
   useEffect(() => {
-    if (publicKey && !storeUser) {
-      const addr = publicKey.toBase58();
-      signIn(shortAddr(addr), addr);
+    if (!publicKey) return;
+    const addr = publicKey.toBase58();
+    if (storeUser?.wallet !== addr) signIn(shortAddr(addr), addr);
+  }, [publicKey, storeUser?.wallet, signIn]);
+
+  // Wallet fully gone — extension locked, account de-authorised, or Sign out.
+  // Guarded on !connecting && !publicKey so a transient blip mid-reconnect
+  // doesn't flash the gate; a real disconnect settles here and shows it.
+  useEffect(() => {
+    if (storeUser && !connected && !connecting && !publicKey) signOut();
+  }, [storeUser, connected, connecting, publicKey, signOut]);
+
+  // Connect only when the user asked to (wantConnectRef), and only for a freshly
+  // selected wallet. Re-tapping an already-selected wallet is handled directly
+  // in pickWallet below, since select() would be a no-op and never fire this.
+  useEffect(() => {
+    if (!wantConnectRef.current) return;
+    if (wallet && !connected && !connecting) {
+      wantConnectRef.current = false;
+      void connect().catch(() => {});
     }
-  }, [publicKey, storeUser, signIn]);
-
-  // Wallet disconnected (from the extension or the Sign out button): sign out.
-  useEffect(() => {
-    if (!connected && storeUser) signOut();
-  }, [connected, storeUser, signOut]);
-
-  // Once a wallet is picked, connect to it (opens the extension's approve popup).
-  useEffect(() => {
-    if (wallet && !connected && !connecting) void connect().catch(() => {});
   }, [wallet, connected, connecting, connect]);
+
+  // Tapping a wallet: if it is already the selected one (e.g. right after Sign
+  // out, where the wallet stays selected), connect straight away; otherwise flag
+  // intent and select it, letting the effect above connect once it is active.
+  const pickWallet = useCallback(
+    (name: WalletName) => {
+      playSound("press");
+      if (wallet?.adapter.name === name) {
+        if (!connected && !connecting) void connect().catch(() => {});
+      } else {
+        wantConnectRef.current = true;
+        select(name);
+      }
+    },
+    [wallet, connected, connecting, connect, select],
+  );
 
   const detected = mounted ? wallets.filter((w) => w.readyState === WalletReadyState.Installed) : [];
 
@@ -117,10 +150,7 @@ export default function SignInGate() {
                       key={w.adapter.name}
                       variants={reduce ? undefined : listItem}
                       whileTap={reduce ? undefined : { scale: 0.98 }}
-                      onClick={() => {
-                        playSound("press");
-                        select(w.adapter.name);
-                      }}
+                      onClick={() => pickWallet(w.adapter.name)}
                       disabled={connecting}
                       className="flex items-center gap-3 rounded-2xl border border-line bg-subtle px-4 py-3.5 text-[15px] font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-60"
                     >

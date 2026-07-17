@@ -41,6 +41,8 @@ next-env.d.ts
 
 # isolated dev build dir
 /.next-run/
+# start.sh / stop.sh runtime state (app pid + logs)
+/.run/
 # installed agent skills (tooling, not app)
 /.agents/
 # installed Claude/agent skills + lockfile (tooling, not app)

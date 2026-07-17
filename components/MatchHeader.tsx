@@ -1,11 +1,11 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { useFixture } from "@/lib/fixture-context";
 import { DUR, EASE_BACK, tweenBase, tweenFast } from "@/lib/motion";
-import { Play } from "./Icons";
+import { Clock, Play } from "./Icons";
 
 const PHASE_LABEL: Record<string, string> = {
   PRE: "Pre-match",
@@ -21,6 +21,56 @@ function kickoff(ts: number): string {
   const day = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
   const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
   return `${day} · ${time} UTC`;
+}
+
+/**
+ * Time left until kick-off, coarsened by how far away it is: days out show
+ * "2d 5h", within a day "5h 12m", and inside the last hour a ticking "12:34"
+ * so the final stretch feels live. Never renders negative values.
+ */
+function formatCountdown(ms: number): string {
+  const total = Math.floor(ms / 1000);
+  const days = Math.floor(total / 86_400);
+  const hours = Math.floor((total % 86_400) / 3_600);
+  const mins = Math.floor((total % 3_600) / 60);
+  const secs = total % 60;
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}:${String(secs).padStart(2, "0")}`;
+}
+
+/**
+ * Live "starts in …" clock for an upcoming fixture, with the absolute UTC
+ * kick-off time trailing as context. `now` starts null so the server and the
+ * first client render agree (no Date.now hydration mismatch); the tick begins
+ * on mount. Once kick-off passes it holds at "Kick-off imminent" until the
+ * feed flips the fixture to live.
+ */
+function Countdown({ startTime }: { startTime: number }) {
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const remaining = now == null || !startTime ? null : startTime - now;
+
+  return (
+    <>
+      <Clock size={11} className="text-ink2" />
+      <span className="text-ink2 tabular-nums">
+        {remaining == null
+          ? "Starts soon"
+          : remaining <= 0
+            ? "Kick-off imminent"
+            : `Starts in ${formatCountdown(remaining)}`}
+      </span>
+      <span className="text-faint">·</span>
+      <span className="text-faint">{kickoff(startTime)}</span>
+    </>
+  );
 }
 
 export default function MatchHeader() {
@@ -59,7 +109,7 @@ export default function MatchHeader() {
           />
         )}
         {upcoming ? (
-          <span className="text-ink2">{kickoff(fixture.startTime)}</span>
+          <Countdown startTime={fixture.startTime} />
         ) : finished ? (
           <>
             <Play size={11} className="text-ink2" />

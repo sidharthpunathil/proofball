@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { EASE_OUT, springPop, springSnappy, tweenFast } from "@/lib/motion";
+import { PROOF } from "@/lib/economy";
 import { ArrowUpRight, ArrowDownRight, Broadcast, Check, Close, Coin, ExternalLink, Flame } from "./Icons";
 import { playSound } from "@/lib/sound";
 import CoinBurst from "@/components/fx/CoinBurst";
@@ -31,7 +32,7 @@ export default function PredictControl() {
   // A per-win token that replays the coin spray over the disc.
   const [burst, setBurst] = useState(0);
   // The just-settled outcome, held ~1600ms so win/loss is legible in the disc.
-  const [result, setResult] = useState<{ outcome: "won" | "lost"; reward: number } | null>(null);
+  const [result, setResult] = useState<{ outcome: "won" | "lost"; reward: number; penalty: number } | null>(null);
 
   const pick = (dir: "up" | "down") => {
     setPick(dir);
@@ -72,7 +73,7 @@ export default function PredictControl() {
   useEffect(() => {
     if (!lastResult || lastResult.n === prevNRef.current) return;
     prevNRef.current = lastResult.n;
-    setResult({ outcome: lastResult.outcome, reward: lastResult.reward });
+    setResult({ outcome: lastResult.outcome, reward: lastResult.reward, penalty: lastResult.penalty });
     if (lastResult.outcome === "won") {
       setBurst((b) => b + 1);
       setRing((r) => ({ n: (r?.n ?? 0) + 1, color: "grn" }));
@@ -222,6 +223,11 @@ export default function PredictControl() {
               </motion.span>
               <CountUp value={result.reward} prefix="+" suffix=" $PROOF" className="tabular-nums text-grn" />
             </>
+          ) : result.penalty > 0 ? (
+            <>
+              <Coin size={13} className="text-mut" />
+              <CountUp value={result.penalty} prefix="−" suffix=" $PROOF" className="tabular-nums text-red" />
+            </>
           ) : (
             <span className="text-mut">Not this time</span>
           )}
@@ -244,7 +250,7 @@ export default function PredictControl() {
           {locked
             ? `Locked at ${current?.lockedProb?.toFixed(0)}%`
             : open
-              ? `Call it right to earn +${nextReward} $PROOF`
+              ? `Right +${nextReward} · wrong −${PROOF.stake} $PROOF`
               : `Reading the market…`}
         </div>
       )}

@@ -6,6 +6,7 @@ import { useStore } from "@/lib/store";
 import { DUR, EASE_INOUT, EASE_OUT, listContainer, listItem, springSoft } from "@/lib/motion";
 import CoinBurst from "@/components/fx/CoinBurst";
 import CountUp from "@/components/fx/CountUp";
+import { PROOF } from "@/lib/economy";
 import { Coin, Flame, Bullseye, Trophy, ShieldCheck } from "./Icons";
 
 export default function EarnPanel() {
@@ -92,7 +93,7 @@ export default function EarnPanel() {
             n={1}
             icon={<Bullseye size={18} />}
             title="Call it right"
-            body={`Predict which way the live win-probability moves. A correct call pays +50 $PROOF.`}
+            body={`Predict which way the live win-probability moves. A right call wins +50 $PROOF; a wrong one costs ${PROOF.stake}, so your score moves every call.`}
           />
           <Step
             n={2}

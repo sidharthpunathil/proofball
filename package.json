@@ -16,7 +16,8 @@
     "matches:sync": "node --env-file=.env scripts/sync-matches.mjs",
     "matches:warm": "node --env-file=.env scripts/warm-replays.mjs",
     "token:create": "node --env-file=.env scripts/create-token.ts",
-    "token:metadata": "node --env-file=.env scripts/set-token-metadata.ts"
+    "token:metadata": "node --env-file=.env scripts/set-token-metadata.ts",
+    "airdrops": "node --env-file=.env scripts/airdrops.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",

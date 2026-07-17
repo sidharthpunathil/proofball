@@ -1,8 +1,9 @@
 import { create } from "zustand";
+import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import type { Frame, MatchEvent, Phase, PickDir, Prediction, LeaderRow } from "./types";
 import type { Sample } from "./candles";
 import { homeWinPct } from "./winprob";
-import { winReward } from "./economy";
+import { PROOF, winReward } from "./economy";
 
 const HISTORY_LEN = 48;
 // The candlestick chart aggregates the whole match, so it keeps a longer,
@@ -12,6 +13,17 @@ const SAMPLE_LEN = 720;
 
 let _id = 0;
 const nextId = () => `${Date.now()}-${_id++}`;
+
+// Storage for the persist middleware. Only a browser has localStorage, so on the
+// server (Next SSR) and under tests we fall back to a no-op — persistence simply
+// does nothing there instead of throwing on the first setState.
+const noopStorage: StateStorage = {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
+};
+const webStorage = (): StateStorage =>
+  typeof window !== "undefined" ? window.localStorage : noopStorage;
 
 interface StoreState {
   // connection
@@ -47,7 +59,8 @@ interface StoreState {
   // edge without re-firing on unrelated renders. Null until the first settle.
   lastResult: {
     outcome: "won" | "lost";
-    reward: number;
+    reward: number; // coins won on a right call (0 on a loss)
+    penalty: number; // coins lost on a wrong call (0 on a win)
     streak: number;
     delta: number;
     brokeStreak: boolean; // a streak of 3+ just ended
@@ -57,7 +70,14 @@ interface StoreState {
 
   // $PROOF token
   proof: number; // on-chain $PROOF balance
-  welcome: { amount: number; url?: string } | null; // first-connect airdrop notice
+  // First-connect airdrop notice that drives WelcomeToast. `granted` = a fresh
+  // airdrop just minted (celebrate); `error` = it failed after retries (offer a
+  // manual retry). An already-funded reconnect sets no notice — it just reflects
+  // the on-chain balance.
+  welcome:
+    | { kind: "granted"; amount: number; url?: string }
+    | { kind: "error" }
+    | null;
 
   // actions
   setConnected: (b: boolean) => void;
@@ -79,7 +99,9 @@ interface StoreState {
   restoreScore: (name: string) => Promise<void>;
 }
 
-export const useStore = create<StoreState>((set, get) => ({
+export const useStore = create<StoreState>()(
+  persist(
+    (set, get) => ({
   connected: false,
   mode: "replay",
   scoreH: 0,
@@ -174,10 +196,11 @@ export const useStore = create<StoreState>((set, get) => ({
       user: { name, wallet },
       leaderboard: mergeYou(s.leaderboard, name, s.coins, s.streak),
     }));
-    // Put this player on the shared board and restore any points they earned before.
-    const s = get();
-    postScore(name, s.coins, s.streak);
-    void s.restoreScore(name);
+    // Restore any score this player already has (adopting the stored value, since
+    // the score is now a P&L that can go down). restoreScore also seeds a
+    // first-time player onto the shared board — we must NOT eagerly post the
+    // local default here, or it would reset a returning player's lower score.
+    void get().restoreScore(name);
     // Mint the one-time welcome airdrop of $PROOF to this wallet (server is the
     // mint authority). Idempotent server-side, so reconnecting never re-airdrops.
     void fetch("/api/reward/airdrop", {
@@ -261,12 +284,15 @@ export const useStore = create<StoreState>((set, get) => ({
     const won = (c.dir === "up" && movedUp) || (c.dir === "down" && movedDown);
     const streak = won ? s.streak + 1 : 0;
     const reward = won ? winReward(streak) : 0;
-    const coins = s.coins + reward;
+    // The score is a play-money P&L: a right call wins the reward, a wrong call
+    // loses the stake (never below 0). Either way the number moves every call.
+    const penalty = won ? 0 : Math.min(PROOF.stake, s.coins);
+    const coins = s.coins + reward - penalty;
     const settled: Prediction = {
       ...c,
       status: won ? "won" : "lost",
       delta,
-      reward,
+      reward: won ? reward : -penalty,
     };
     set({
       current: null,
@@ -281,6 +307,7 @@ export const useStore = create<StoreState>((set, get) => ({
       lastResult: {
         outcome: won ? "won" : "lost",
         reward,
+        penalty,
         streak,
         delta,
         brokeStreak: !won && s.streak >= 3,
@@ -316,18 +343,49 @@ export const useStore = create<StoreState>((set, get) => ({
       if (!res.ok) return;
       const data = await res.json();
       const rows: SharedRow[] = Array.isArray(data.rows) ? data.rows : [];
+      const me = data.me as SharedRow | null;
       set((st) => {
-        const me = data.me as SharedRow | null;
-        // Never lose points: keep the higher of local vs stored.
-        const coins = me && me.coins > st.coins ? me.coins : st.coins;
+        // The stored score is authoritative — the score is a P&L that can go
+        // down, so we adopt it rather than keeping the local max. A first-time
+        // player has no stored row yet and keeps their starting balance.
+        const coins = me ? me.coins : st.coins;
         const streak = me ? me.streak : st.streak;
         return { coins, streak, leaderboard: mergeShared(rows, name, coins, streak) };
       });
+      // Seed a first-time player onto the shared board at their starting score.
+      if (!me) {
+        const st = get();
+        postScore(name, st.coins, st.streak);
+      }
     } catch {
       /* offline , stay on the local board */
     }
   },
-}));
+    }),
+    {
+      name: "proofball:v1",
+      version: 1,
+      storage: createJSONStorage(webStorage),
+      // Only durable user progress survives a reload. Live match + connection
+      // state, the in-flight call, one-shot tokens, and fetched data (proof,
+      // leaderboard) are all rebuilt from the feed/chain, so they stay out of
+      // storage. `history` in particular has no server backup — persisting it
+      // here is what stops "Your calls" from clearing on every refresh.
+      partialize: (s) => ({
+        history: s.history,
+        coins: s.coins,
+        streak: s.streak,
+        best: s.best,
+      }),
+      // Next SSRs these client components with the default (empty) state.
+      // Hydrating from localStorage during render would diverge from the server
+      // HTML, so we skip the automatic hydrate and rehydrate after mount (see
+      // Providers): first client paint matches the server, then the stored
+      // calls fill in — the same post-mount pattern the wallet gate uses.
+      skipHydration: true,
+    },
+  ),
+);
 
 function mergeYou(board: LeaderRow[], name: string, coins: number, streak: number): LeaderRow[] {
   const others = board.filter((r) => !r.you);

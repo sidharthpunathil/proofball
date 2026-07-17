@@ -130,6 +130,9 @@ export default function PickHistory({ limit = 20, showEmpty = false }: { limit?:
                     {!firstPaint && i === 0 && <CoinBurst fireKey={burstKey} count={3} size={10} />}
                   </span>
                 )}
+                {!won && p.reward != null && p.reward < 0 && (
+                  <span className="tabular-nums font-semibold text-red/80">−{Math.abs(p.reward)}</span>
+                )}
                 {won && <ShareButton pick={p} />}
                 {p.verifyUrl && (
                   <a

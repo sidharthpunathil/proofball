@@ -21,6 +21,12 @@ export const PROOF = {
   entrySol: 0.0005, // SOL per call (real on-chain transfer)
   solPoolShare: 2, // a SOL entry counts as this many $PROOF-stakes in the pool
 
+  // The leaderboard score is a play-money P&L (starts at 500, separate from the
+  // on-chain $PROOF balance). Every settled call is real risk: a correct call
+  // wins `winReward`, a wrong call loses `stake` (floored at 0). This is what
+  // makes the score move on every call — up and down — as you play.
+  stake: 20, // coins risked per call, lost on a wrong call
+
   // House rake on each pool, in basis points (0 = none, fully returned to winners).
   rakeBps: 0,
 
