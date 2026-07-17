@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
+import { DUR, EASE_OUT } from "@/lib/motion";
 
 /**
  * PlayQR
@@ -19,6 +21,7 @@ import { QRCodeSVG } from "qrcode.react";
  */
 export default function PlayQR({ path }: { path?: string }) {
   const [origin, setOrigin] = useState<string | null>(null);
+  const reduce = useReducedMotion();
 
   useEffect(() => {
     setOrigin(process.env.NEXT_PUBLIC_APP_URL || window.location.origin);
@@ -37,14 +40,21 @@ export default function PlayQR({ path }: { path?: string }) {
     >
       <span className="device-qr-card">
         {url ? (
-          <QRCodeSVG
-            value={url}
-            size={112}
-            level="M"
-            marginSize={2}
-            bgColor="#ffffff"
-            fgColor="#0c0c0e"
-          />
+          <motion.span
+            style={{ display: "inline-block" }}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+            animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1 }}
+            transition={reduce ? { duration: DUR.fast } : { duration: DUR.base, ease: EASE_OUT }}
+          >
+            <QRCodeSVG
+              value={url}
+              size={112}
+              level="M"
+              marginSize={2}
+              bgColor="#ffffff"
+              fgColor="#0c0c0e"
+            />
+          </motion.span>
         ) : (
           <span className="device-qr-ph" aria-hidden />
         )}

@@ -1,6 +1,8 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
+import { springSnappy } from "@/lib/motion";
+import { playSound } from "@/lib/sound";
 import { Grid, Trophy, Gift, Activity, User } from "./Icons";
 
 export type Tab = "match" | "board" | "earn" | "activity" | "profile";
@@ -23,7 +25,10 @@ export default function BottomNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) 
           return (
             <button
               key={id}
-              onClick={() => setTab(id)}
+              onClick={() => {
+                if (!active) playSound("navTap");
+                setTab(id);
+              }}
               className={`flex flex-1 flex-col items-center gap-1 rounded-[18px] py-1 text-[10px] font-medium transition-colors ${
                 active ? "text-ink" : "text-mut"
               }`}
@@ -33,11 +38,7 @@ export default function BottomNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) 
                   <motion.span
                     layoutId="navActive"
                     className="absolute inset-0 rounded-full bg-ink"
-                    transition={
-                      reduce
-                        ? { duration: 0 }
-                        : { type: "spring", stiffness: 320, damping: 30 }
-                    }
+                    transition={reduce ? { duration: 0 } : springSnappy}
                   />
                 )}
                 <span className={`relative z-10 transition-colors ${active ? "text-bg" : "text-mut"}`}>

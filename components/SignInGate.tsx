@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletReadyState } from "@solana/wallet-adapter-base";
 import { useStore } from "@/lib/store";
-import { DUR, EASE_OUT } from "@/lib/motion";
+import { playSound } from "@/lib/sound";
+import { DUR, EASE_OUT, springPop, listContainer, listItem } from "@/lib/motion";
 import { ShieldCheck } from "./Icons";
 
 function shortAddr(a: string) {
@@ -18,6 +19,13 @@ const KNOWN = [
   { name: "Solflare", url: "https://solflare.com/" },
   { name: "Backpack", url: "https://backpack.app/" },
 ];
+
+// The wallet/install choices cascade in — but only once the sheet has slid up
+// and settled, via a longer delayChildren than the shared token's default.
+const walletCascade: Variants = {
+  hidden: listContainer.hidden,
+  show: { transition: { ...listContainer.show.transition, delayChildren: 0.2 } },
+};
 
 export default function SignInGate() {
   const { wallets, select, connect, connecting, connected, publicKey, wallet } = useWallet();
@@ -57,7 +65,7 @@ export default function SignInGate() {
           transition={{ duration: 0.2 }}
         >
           <motion.div
-            className="w-full max-w-md rounded-t-[30px] border border-line bg-surface p-6 pb-9 shadow-card"
+            className="relative w-full max-w-md rounded-t-[30px] border border-line bg-surface p-6 pb-9 shadow-card"
             initial={reduce ? false : { y: "100%" }}
             animate={{ y: 0 }}
             exit={reduce ? { opacity: 0 } : { y: "100%", transition: { duration: DUR.fast, ease: EASE_OUT } }}
@@ -66,7 +74,14 @@ export default function SignInGate() {
             <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-line2" />
             <div className="flex justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/proofball-logo.png" alt="ProofBall" className="h-14 w-14 rounded-2xl" />
+              <motion.img
+                src="/proofball-logo.png"
+                alt="ProofBall"
+                className="h-14 w-14 rounded-2xl"
+                initial={reduce ? false : { scale: 0.8, opacity: 0 }}
+                animate={reduce ? false : { scale: 1, opacity: 1 }}
+                transition={reduce ? undefined : { ...springPop, delay: 0.15 }}
+              />
             </div>
             <div className="mt-4 text-center text-[24px] font-extrabold leading-[1.15] tracking-[-0.02em] text-ink">
               Don&apos;t trust the numbers.
@@ -79,13 +94,24 @@ export default function SignInGate() {
             </p>
 
             {detected.length > 0 ? (
-              <div className="mt-5 flex flex-col gap-2">
+              <motion.div
+                className="mt-5 flex flex-col gap-2"
+                variants={reduce ? undefined : walletCascade}
+                initial={reduce ? false : "hidden"}
+                animate={reduce ? false : "show"}
+              >
                 {detected.map((w) => {
                   const isThis = wallet?.adapter.name === w.adapter.name;
+                  const label = connecting && isThis ? "Connecting…" : "Detected";
                   return (
-                    <button
+                    <motion.button
                       key={w.adapter.name}
-                      onClick={() => select(w.adapter.name)}
+                      variants={reduce ? undefined : listItem}
+                      whileTap={reduce ? undefined : { scale: 0.98 }}
+                      onClick={() => {
+                        playSound("press");
+                        select(w.adapter.name);
+                      }}
                       disabled={connecting}
                       className="flex items-center gap-3 rounded-2xl border border-line bg-subtle px-4 py-3.5 text-[15px] font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-60"
                     >
@@ -93,20 +119,40 @@ export default function SignInGate() {
                       <img src={w.adapter.icon} alt="" className="h-6 w-6 rounded" />
                       {w.adapter.name}
                       <span className="ml-auto text-[12px] font-medium text-mut">
-                        {connecting && isThis ? "Connecting…" : "Detected"}
+                        <AnimatePresence mode="wait" initial={false}>
+                          <motion.span
+                            key={label}
+                            initial={reduce ? false : { opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: reduce ? 0 : DUR.micro }}
+                          >
+                            {label}
+                          </motion.span>
+                        </AnimatePresence>
                       </span>
-                    </button>
+                    </motion.button>
                   );
                 })}
-              </div>
+              </motion.div>
             ) : (
-              <div className="mt-5 flex flex-col gap-2">
-                <p className="mb-1 text-center text-[13px] text-mut">
+              <motion.div
+                className="mt-5 flex flex-col gap-2"
+                variants={reduce ? undefined : walletCascade}
+                initial={reduce ? false : "hidden"}
+                animate={reduce ? false : "show"}
+              >
+                <motion.p
+                  variants={reduce ? undefined : listItem}
+                  className="mb-1 text-center text-[13px] text-mut"
+                >
                   No Solana wallet found. Install one to continue:
-                </p>
+                </motion.p>
                 {KNOWN.map((k) => (
-                  <a
+                  <motion.a
                     key={k.name}
+                    variants={reduce ? undefined : listItem}
+                    whileTap={reduce ? undefined : { scale: 0.98 }}
                     href={k.url}
                     target="_blank"
                     rel="noreferrer"
@@ -114,9 +160,9 @@ export default function SignInGate() {
                   >
                     {k.name}
                     <span className="text-[12px] font-medium text-grn">Install</span>
-                  </a>
+                  </motion.a>
                 ))}
-              </div>
+              </motion.div>
             )}
 
             <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11.5px] text-mut">

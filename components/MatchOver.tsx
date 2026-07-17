@@ -6,8 +6,8 @@ import { Play } from "./Icons";
 
 /**
  * Banner shown above the prediction control on a FINISHED match. The match is
- * already over, so this is a replay simulation: you can still call the needle,
- * but only to earn leaderboard points , nothing else is at stake.
+ * already over, so you're calling the replay , but it's real play on Solana
+ * devnet: every correct call mints real devnet $PROOF to your wallet on-chain.
  */
 export default function MatchOver() {
   const reduce = useReducedMotion();
@@ -23,8 +23,8 @@ export default function MatchOver() {
           <Play size={13} />
         </span>
         <p className="text-[12.5px] leading-[1.4]">
-          <span className="font-semibold text-ink">This match is already over.</span>{" "}
-          <span className="text-ink2">You&apos;re playing the replay simulation. Calls only earn points.</span>
+          <span className="font-semibold text-ink">You can play this on Solana devnet.</span>{" "}
+          <span className="text-ink2">The match already finished, so you&apos;re calling the replay , win calls to earn real devnet $PROOF.</span>
         </p>
       </motion.div>
     </div>

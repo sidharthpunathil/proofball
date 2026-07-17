@@ -65,42 +65,42 @@ Then it loops. A new round opens, the needle keeps swinging with the match, and 
 
 <figure>
 <svg viewBox="0 0 700 122" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
-  <defs><marker id="ar1" markerWidth="9" markerHeight="9" refX="5.5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#0a9e5c"/></marker></defs>
+  <defs><marker id="ar1" markerWidth="9" markerHeight="9" refX="5.5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#5b44ec"/></marker></defs>
   <g>
     <rect x="14" y="16" width="100" height="66" rx="12" fill="#ffffff" stroke="#e6e6ec" stroke-width="1.5"/>
-    <circle cx="32" cy="34" r="10" fill="#0a9e5c"/><text x="32" y="38" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">1</text>
+    <circle cx="32" cy="34" r="10" fill="#5b44ec"/><text x="32" y="38" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">1</text>
     <text x="64" y="58" text-anchor="middle" font-size="11.5" font-weight="600" fill="#14151a">Connect</text><text x="64" y="72" text-anchor="middle" font-size="11.5" font-weight="600" fill="#14151a">wallet</text>
   </g>
   <g>
     <rect x="126" y="16" width="100" height="66" rx="12" fill="#ffffff" stroke="#e6e6ec" stroke-width="1.5"/>
-    <circle cx="144" cy="34" r="10" fill="#0a9e5c"/><text x="144" y="38" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">2</text>
+    <circle cx="144" cy="34" r="10" fill="#5b44ec"/><text x="144" y="38" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">2</text>
     <text x="176" y="58" text-anchor="middle" font-size="11.5" font-weight="600" fill="#14151a">Get 1,000</text><text x="176" y="72" text-anchor="middle" font-size="11.5" font-weight="600" fill="#14151a">$PROOF</text>
   </g>
   <g>
     <rect x="238" y="16" width="100" height="66" rx="12" fill="#ffffff" stroke="#e6e6ec" stroke-width="1.5"/>
-    <circle cx="256" cy="34" r="10" fill="#0a9e5c"/><text x="256" y="38" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">3</text>
+    <circle cx="256" cy="34" r="10" fill="#5b44ec"/><text x="256" y="38" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">3</text>
     <text x="288" y="58" text-anchor="middle" font-size="11.5" font-weight="600" fill="#14151a">Round</text><text x="288" y="72" text-anchor="middle" font-size="11.5" font-weight="600" fill="#14151a">opens</text>
   </g>
   <g>
     <rect x="350" y="16" width="100" height="66" rx="12" fill="#ffffff" stroke="#e6e6ec" stroke-width="1.5"/>
-    <circle cx="368" cy="34" r="10" fill="#0a9e5c"/><text x="368" y="38" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">4</text>
+    <circle cx="368" cy="34" r="10" fill="#5b44ec"/><text x="368" y="38" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">4</text>
     <text x="400" y="58" text-anchor="middle" font-size="11.5" font-weight="600" fill="#14151a">Call it,</text><text x="400" y="72" text-anchor="middle" font-size="11.5" font-weight="600" fill="#14151a">pay entry</text>
   </g>
   <g>
     <rect x="462" y="16" width="100" height="66" rx="12" fill="#ffffff" stroke="#e6e6ec" stroke-width="1.5"/>
-    <circle cx="480" cy="34" r="10" fill="#0a9e5c"/><text x="480" y="38" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">5</text>
+    <circle cx="480" cy="34" r="10" fill="#5b44ec"/><text x="480" y="38" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">5</text>
     <text x="512" y="58" text-anchor="middle" font-size="11.5" font-weight="600" fill="#14151a">Locked</text><text x="512" y="72" text-anchor="middle" font-size="11.5" font-weight="600" fill="#14151a">on-chain</text>
   </g>
   <g>
     <rect x="574" y="16" width="100" height="66" rx="12" fill="#ffffff" stroke="#e6e6ec" stroke-width="1.5"/>
-    <circle cx="592" cy="34" r="10" fill="#0a9e5c"/><text x="592" y="38" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">6</text>
+    <circle cx="592" cy="34" r="10" fill="#5b44ec"/><text x="592" y="38" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">6</text>
     <text x="624" y="58" text-anchor="middle" font-size="11.5" font-weight="600" fill="#14151a">Winners</text><text x="624" y="72" text-anchor="middle" font-size="11.5" font-weight="600" fill="#14151a">split pool</text>
   </g>
-  <line x1="115" y1="49" x2="125" y2="49" stroke="#0a9e5c" stroke-width="1.5" marker-end="url(#ar1)"/>
-  <line x1="227" y1="49" x2="237" y2="49" stroke="#0a9e5c" stroke-width="1.5" marker-end="url(#ar1)"/>
-  <line x1="339" y1="49" x2="349" y2="49" stroke="#0a9e5c" stroke-width="1.5" marker-end="url(#ar1)"/>
-  <line x1="451" y1="49" x2="461" y2="49" stroke="#0a9e5c" stroke-width="1.5" marker-end="url(#ar1)"/>
-  <line x1="563" y1="49" x2="573" y2="49" stroke="#0a9e5c" stroke-width="1.5" marker-end="url(#ar1)"/>
+  <line x1="115" y1="49" x2="125" y2="49" stroke="#5b44ec" stroke-width="1.5" marker-end="url(#ar1)"/>
+  <line x1="227" y1="49" x2="237" y2="49" stroke="#5b44ec" stroke-width="1.5" marker-end="url(#ar1)"/>
+  <line x1="339" y1="49" x2="349" y2="49" stroke="#5b44ec" stroke-width="1.5" marker-end="url(#ar1)"/>
+  <line x1="451" y1="49" x2="461" y2="49" stroke="#5b44ec" stroke-width="1.5" marker-end="url(#ar1)"/>
+  <line x1="563" y1="49" x2="573" y2="49" stroke="#5b44ec" stroke-width="1.5" marker-end="url(#ar1)"/>
   <text x="350" y="107" text-anchor="middle" font-size="11.5" font-weight="600" fill="#5c5c66">Then it loops, every few seconds.</text>
 </svg>
 <figcaption>The round loop.</figcaption>
@@ -191,7 +191,7 @@ Here is a moment. Spain versus Argentina, and a pool asks whether Spain will hol
 
 <figure>
 <svg viewBox="0 0 700 292" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
-  <defs><marker id="ar2" markerWidth="9" markerHeight="9" refX="5.5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#0a9e5c"/></marker></defs>
+  <defs><marker id="ar2" markerWidth="9" markerHeight="9" refX="5.5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#5b44ec"/></marker></defs>
   <g font-size="12.5" font-weight="700" fill="#14151a" text-anchor="middle">
     <rect x="24" y="14" width="116" height="40" rx="10" fill="#ffffff" stroke="#e6e6ec" stroke-width="1.5"/><text x="82" y="39">5 $PROOF</text>
     <rect x="156" y="14" width="116" height="40" rx="10" fill="#ffffff" stroke="#e6e6ec" stroke-width="1.5"/><text x="214" y="39">5 $PROOF</text>
@@ -200,16 +200,16 @@ Here is a moment. Spain versus Argentina, and a pool asks whether Spain will hol
     <rect x="552" y="14" width="116" height="40" rx="10" fill="#ffffff" stroke="#e6e6ec" stroke-width="1.5"/><text x="610" y="39">5 $PROOF</text>
   </g>
   <text x="346" y="70" text-anchor="middle" font-size="10.5" font-weight="600" fill="#5c5c66">five entries into one pool</text>
-  <line x1="346" y1="74" x2="346" y2="94" stroke="#0a9e5c" stroke-width="1.5" marker-end="url(#ar2)"/>
-  <rect x="246" y="96" width="200" height="58" rx="12" fill="#eef7f1" stroke="#0a9e5c" stroke-width="1.75"/>
+  <line x1="346" y1="74" x2="346" y2="94" stroke="#5b44ec" stroke-width="1.5" marker-end="url(#ar2)"/>
+  <rect x="246" y="96" width="200" height="58" rx="12" fill="#f1eefd" stroke="#5b44ec" stroke-width="1.75"/>
   <text x="346" y="118" text-anchor="middle" font-size="10" font-weight="700" fill="#5c5c66" letter-spacing="1">POOL</text>
   <text x="346" y="141" text-anchor="middle" font-size="18" font-weight="800" fill="#14151a">25 $PROOF</text>
   <text x="346" y="172" text-anchor="middle" font-size="10.5" font-weight="600" fill="#5c5c66">3 correct callers split it, by stake</text>
-  <line x1="346" y1="156" x2="346" y2="198" stroke="#0a9e5c" stroke-width="1.5" marker-end="url(#ar2)"/>
+  <line x1="346" y1="156" x2="346" y2="198" stroke="#5b44ec" stroke-width="1.5" marker-end="url(#ar2)"/>
   <g font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="middle">
-    <rect x="140" y="202" width="120" height="44" rx="10" fill="#0a9e5c"/><text x="200" y="229">8.33 $PROOF</text>
-    <rect x="290" y="202" width="120" height="44" rx="10" fill="#0a9e5c"/><text x="350" y="229">8.33 $PROOF</text>
-    <rect x="440" y="202" width="120" height="44" rx="10" fill="#0a9e5c"/><text x="500" y="229">8.33 $PROOF</text>
+    <rect x="140" y="202" width="120" height="44" rx="10" fill="#5b44ec"/><text x="200" y="229">8.33 $PROOF</text>
+    <rect x="290" y="202" width="120" height="44" rx="10" fill="#5b44ec"/><text x="350" y="229">8.33 $PROOF</text>
+    <rect x="440" y="202" width="120" height="44" rx="10" fill="#5b44ec"/><text x="500" y="229">8.33 $PROOF</text>
   </g>
   <text x="350" y="276" text-anchor="middle" font-size="11" font-weight="600" fill="#5c5c66">The 2 who missed forfeit their 5 $PROOF to the pool.</text>
 </svg>
@@ -240,7 +240,7 @@ Most prediction apps ask you to trust their database. They record what you picke
   <rect x="22" y="66" width="180" height="80" rx="12" fill="#ffffff" stroke="#e6e6ec" stroke-width="1.5"/>
   <text x="112" y="100" text-anchor="middle" font-size="13" font-weight="700" fill="#14151a">Your phone</text>
   <text x="112" y="121" text-anchor="middle" font-size="11.5" fill="#5c5c66">+ Solana wallet</text>
-  <rect x="270" y="66" width="180" height="80" rx="12" fill="#eef7f1" stroke="#0a9e5c" stroke-width="1.75"/>
+  <rect x="270" y="66" width="180" height="80" rx="12" fill="#f1eefd" stroke="#5b44ec" stroke-width="1.75"/>
   <text x="360" y="100" text-anchor="middle" font-size="13" font-weight="700" fill="#14151a">ProofBall</text>
   <text x="360" y="121" text-anchor="middle" font-size="11.5" fill="#5c5c66">server</text>
   <rect x="506" y="24" width="182" height="66" rx="12" fill="#ffffff" stroke="#e6e6ec" stroke-width="1.5"/>

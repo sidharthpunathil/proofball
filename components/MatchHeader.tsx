@@ -1,9 +1,10 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import type { ReactNode } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { useFixture } from "@/lib/fixture-context";
-import { tweenBase } from "@/lib/motion";
+import { DUR, EASE_BACK, tweenBase, tweenFast } from "@/lib/motion";
 import { Play } from "./Icons";
 
 const PHASE_LABEL: Record<string, string> = {
@@ -64,17 +65,47 @@ export default function MatchHeader() {
             <Play size={11} className="text-ink2" />
             <span className="text-ink2">Replay</span>
             <span className="text-faint">·</span>
-            <span>{phase === "FT" ? "Full-time" : `${minute}'`}</span>
+            {/* keyed on phase, so the live minute updates silently and only the
+                phase flip (→ FT) animates, with a small overshoot at full-time */}
+            <PhaseTag phase={phase} reduce={!!reduce}>
+              {phase === "FT" ? "Full-time" : `${minute}'`}
+            </PhaseTag>
           </>
         ) : (
           <>
             <span className={live ? "text-red" : ""}>{live ? `${minute}'` : PHASE_LABEL[phase]}</span>
             <span className="text-faint">·</span>
-            <span>{PHASE_LABEL[phase]}</span>
+            <PhaseTag phase={phase} reduce={!!reduce}>
+              {PHASE_LABEL[phase]}
+            </PhaseTag>
           </>
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * The trailing phase/status word (Pre-match → 1st Half → … → Full-time).
+ * Crossfades + rises on each phase change instead of hard-swapping; keyed on
+ * the phase, never the minute, so the live clock updates without re-animating.
+ * Full-time enters with a touch of overshoot as a small end-of-match beat.
+ * Reduced motion degrades to a plain opacity crossfade.
+ */
+function PhaseTag({ phase, reduce, children }: { phase: string; reduce: boolean; children: ReactNode }) {
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.span
+        key={phase}
+        initial={reduce ? { opacity: 0 } : { opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, transition: tweenFast }}
+        transition={reduce ? tweenFast : phase === "FT" ? { duration: DUR.fast, ease: EASE_BACK } : tweenFast}
+        className="inline-block"
+      >
+        {children}
+      </motion.span>
+    </AnimatePresence>
   );
 }
 

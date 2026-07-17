@@ -3,11 +3,21 @@ import { loadRecordedFrames } from "@/lib/recorded";
 import { getFixture, buildRealReplay, FEATURED_FIXTURE_ID } from "@/lib/txline-fixtures";
 import { getCredentials } from "@/lib/txline-auth";
 import { openLiveStream } from "@/lib/txline-live";
+import { cacheGetJSON, cacheSetJSON } from "@/lib/redis";
 import type { Frame } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 300;
+
+// A finished match's real replay is IMMUTABLE (the game is over), so once built
+// it is cached in Redis and served without hitting the rate-limited devnet feed
+// again. This is what makes EVERY past game reliably playable in devnet: it no
+// longer degrades to a synthetic arc when the feed rolls the fixture off, rate-
+// limits under load, or the creds lapse. 45 days outlives any demo; a stale
+// entry self-heals on expiry.
+const REPLAY_CACHE_PREFIX = "proofball:replay:v1:";
+const REPLAY_TTL_SEC = 60 * 60 * 24 * 45;
 
 /**
  * SSE endpoint. The browser connects with a plain same-origin EventSource (no
@@ -39,8 +49,25 @@ export async function GET(req: Request) {
 
   // 2) Real recorded event log + real odds for this fixture.
   if (fixture) {
+    const finished = fixture.status === "finished";
+    const cacheKey = `${REPLAY_CACHE_PREFIX}${fixtureId}`;
+
+    // 2a) Finished match: serve the durable cached replay if we have one, so a
+    //     past game plays its REAL timeline without depending on the live feed.
+    if (finished) {
+      const cached = await cacheGetJSON<Frame[]>(cacheKey);
+      if (cached && cached.length > 1) {
+        return replay(req, cached.map((f) => ({ delay: f.delay ?? 0, data: f })));
+      }
+    }
+
+    // 2b) Build from the real feed. For a finished match, persist it so every
+    //     later play (any user, any instance) is feed-independent and fast.
     const real = await buildRealReplay(fixture);
-    if (real && real.length > 1) return replay(req, real.map((f) => ({ delay: f.delay, data: f })));
+    if (real && real.length > 1) {
+      if (finished) void cacheSetJSON(cacheKey, real, REPLAY_TTL_SEC);
+      return replay(req, real.map((f) => ({ delay: f.delay, data: f })));
+    }
   }
 
   // 3) A captured .ndjson fixture, if present.

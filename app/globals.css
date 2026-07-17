@@ -19,6 +19,8 @@
   --redsoft: 254 236 234;
   --blue: 47 111 237;
   --amber: 176 116 6;
+  --orange: 224 90 24;
+  --violet: 116 76 224;
   --stage: radial-gradient(135% 95% at 50% -12%, #f8f7fa 0%, #ebecf3 52%, #e4e7f1 100%);
   --shadow-card: 0 1px 2px rgba(20, 20, 40, 0.05), 0 10px 30px -16px rgba(20, 20, 50, 0.2);
   --shadow-soft: 0 1px 2px rgba(20, 20, 40, 0.05), 0 4px 14px -10px rgba(20, 20, 50, 0.14);
@@ -71,6 +73,8 @@
   --redsoft: 50 26 26;
   --blue: 104 160 255;
   --amber: 240 178 66;
+  --orange: 251 146 60;
+  --violet: 167 139 250;
   --stage: radial-gradient(135% 95% at 50% -12%, #1b1d26 0%, #101116 60%, #0c0d11 100%);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5), 0 14px 36px -20px rgba(0, 0, 0, 0.8);
   --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.4);

@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useStore } from "@/lib/store";
-import { springPop, tweenFast } from "@/lib/motion";
+import { springPop, tweenFast, EASE_BACK, DUR } from "@/lib/motion";
+import CountUp from "@/components/fx/CountUp";
 import { Coin, ExternalLink } from "./Icons";
 
 /**
@@ -33,11 +34,23 @@ export default function WelcomeToast() {
         >
           <div className="pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3 shadow-card">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-grnsoft text-grn">
-              <Coin size={18} />
+              {reduce ? (
+                <Coin size={18} />
+              ) : (
+                <motion.span
+                  className="inline-flex"
+                  initial={{ rotate: -180, scale: 0.4, opacity: 0 }}
+                  animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                  transition={{ duration: DUR.base, ease: EASE_BACK }}
+                >
+                  <Coin size={18} />
+                </motion.span>
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[14px] font-semibold leading-snug text-ink">
-                Welcome! We airdropped you {welcome.amount.toLocaleString()} $PROOF
+                Welcome! We airdropped you{" "}
+                <CountUp value={welcome.amount} format={(v) => Math.round(v).toLocaleString()} /> $PROOF
               </div>
               <div className="text-[12px] text-mut">Free to play. Make a call to put it to work.</div>
             </div>

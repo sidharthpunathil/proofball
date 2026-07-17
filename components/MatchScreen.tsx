@@ -21,6 +21,7 @@ import Leaderboard from "./Leaderboard";
 import EarnPanel from "./EarnPanel";
 import SignInGate from "./SignInGate";
 import WelcomeToast from "./WelcomeToast";
+import Celebration from "./fx/Celebration";
 import BottomNav, { type Tab } from "./BottomNav";
 import { User, ExternalLink, Gift, Gauge, CandlestickChart } from "./Icons";
 import { PROOF } from "@/lib/economy";
@@ -73,9 +74,9 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
     }
   }, [candleMin]);
 
-  // A finished match replays as a SIMULATION: the real event log plays back and
-  // you can still call the (modelled) needle to earn points. The result is
-  // already known, so nothing is at stake beyond the leaderboard.
+  // A finished match replays its real event log, but it's still real play on
+  // devnet: you call the (modelled) needle and a correct call mints real devnet
+  // $PROOF to your wallet. The result is known, so the edge is reading the needle.
   const isFinished = fixture.status === "finished";
 
   // 1) Real data via same-origin SSE. The proxy serves the most real feed
@@ -98,7 +99,7 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
   }, [fixture.id]);
 
   // 2) Prediction loop: open → lock (on-chain commit) → settle. Runs for finished
-  //    matches too , there it drives the replay simulation where calls earn points.
+  //    matches too , there it drives the replay where correct calls mint devnet $PROOF.
   useEffect(() => {
     const iv = setInterval(() => {
       const s = useStore.getState();
@@ -227,6 +228,7 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
         <BottomNav tab={tab} setTab={setTab} />
         <SignInGate />
         <WelcomeToast />
+        <Celebration />
       </div>
     </FixtureProvider>
   );

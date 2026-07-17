@@ -8,6 +8,8 @@ import { useStore } from "@/lib/store";
 import { useFixture } from "@/lib/fixture-context";
 import { User, ChevronLeft, Check } from "./Icons";
 import ThemeToggle from "./ThemeToggle";
+import MuteButton from "./MuteButton";
+import { playSound } from "@/lib/sound";
 
 // Deterministic gradient "identicon" from a wallet address: each key gets its
 // own recognisable look, so the chip *is* the identity, not a generic silhouette.
@@ -33,6 +35,7 @@ export default function AppHeader() {
     try {
       await navigator.clipboard.writeText(user.wallet);
       setCopied(true);
+      playSound("copy");
       window.setTimeout(() => setCopied(false), 1300);
     } catch {
       /* clipboard blocked (insecure context / denied): no-op */
@@ -121,7 +124,8 @@ export default function AppHeader() {
           collide. Links back to the lobby to pick another match. */}
       <Link
         href="/"
-        className="mx-auto flex h-8 min-w-0 max-w-[46%] items-center gap-2 rounded-full border border-line bg-surface px-3 shadow-soft transition-colors hover:border-line2"
+        onClick={() => playSound("navTap")}
+        className="mx-auto flex h-8 min-w-0 max-w-[46%] items-center gap-2 rounded-full border border-line bg-surface px-3 shadow-soft transition-[transform,border-color] hover:border-line2 active:scale-[0.97]"
       >
         <ChevronLeft size={14} className="shrink-0 text-mut" />
         <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: fixture.home.color }} />
@@ -132,7 +136,10 @@ export default function AppHeader() {
         {live && <span className="ml-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red animate-pulse2" />}
       </Link>
 
-      <ThemeToggle className="shrink-0 h-10 w-10" />
+      <div className="flex shrink-0 items-center gap-1.5">
+        <MuteButton className="h-10 w-10" />
+        <ThemeToggle className="h-10 w-10" />
+      </div>
     </motion.div>
   );
 }

@@ -74,6 +74,29 @@ export const Ball = ({ size, strokeWidth, className, ...rest }: IconProps) => (
 );
 Ball.displayName = "Ball";
 
+// Bullseye: bolder than lucide's Target, with a SOLID centre dot so the
+// multiplier tile reads as an on-target hit, not just nested rings.
+export const Bullseye = ({ size, strokeWidth, className, ...rest }: IconProps) => (
+  <svg
+    width={size ?? 20}
+    height={size ?? 20}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={strokeWidth ?? 2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    aria-hidden
+    {...rest}
+  >
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="5" />
+    <circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none" />
+  </svg>
+);
+Bullseye.displayName = "Bullseye";
+
 export const Target = icon(LrTarget, "Target");
 export const ShieldCheck = icon(LrShieldCheck, "ShieldCheck");
 export const Flame = icon(LrFlame, "Flame");

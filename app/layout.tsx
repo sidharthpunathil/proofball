@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import DeviceFrame from "@/components/DeviceFrame";
+import SoundLayer from "@/components/SoundLayer";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <Providers>
+          <SoundLayer />
           <DeviceFrame>{children}</DeviceFrame>
         </Providers>
       </body>

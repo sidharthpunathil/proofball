@@ -27,6 +27,8 @@ const config: Config = {
         redsoft: v("redsoft"),
         blue: v("blue"),
         amber: v("amber"),
+        orange: v("orange"),
+        violet: v("violet"),
       },
       fontFamily: {
         sans: [

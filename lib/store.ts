@@ -42,6 +42,19 @@ interface StoreState {
   lastSettleAt: number;
   leaderboard: LeaderRow[];
 
+  // The just-settled call, as a one-shot token. `n` bumps on every settlement so
+  // UI (the PredictControl outcome disc, sound, celebration) can react to the
+  // edge without re-firing on unrelated renders. Null until the first settle.
+  lastResult: {
+    outcome: "won" | "lost";
+    reward: number;
+    streak: number;
+    delta: number;
+    brokeStreak: boolean; // a streak of 3+ just ended
+    newBest: boolean; // this win set a new personal-best streak
+    n: number;
+  } | null;
+
   // $PROOF token
   proof: number; // on-chain $PROOF balance
   welcome: { amount: number; url?: string } | null; // first-connect airdrop notice
@@ -90,6 +103,7 @@ export const useStore = create<StoreState>((set, get) => ({
   history: [],
   lastSettleAt: 0,
   leaderboard: [],
+  lastResult: null,
   proof: 0,
   welcome: null,
 
@@ -262,6 +276,17 @@ export const useStore = create<StoreState>((set, get) => ({
       best: Math.max(s.best, streak),
       lastSettleAt: now,
       leaderboard: mergeYou(s.leaderboard, s.user?.name ?? "you", coins, streak),
+      // One-shot settlement token. Drives the PredictControl outcome disc, the
+      // reward count-up, sound, and the rare milestone celebration.
+      lastResult: {
+        outcome: won ? "won" : "lost",
+        reward,
+        streak,
+        delta,
+        brokeStreak: !won && s.streak >= 3,
+        newBest: won && streak > s.best,
+        n: (s.lastResult?.n ?? 0) + 1,
+      },
     });
     // Persist the new total to the shared Redis leaderboard.
     postScore(s.user?.name, coins, streak);

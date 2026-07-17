@@ -47,7 +47,7 @@ marked.setOptions({ gfm: true, breaks: false });
 const bodyHtml = marked.parse(body);
 
 const html = `<!doctype html><html><head><meta charset="utf-8"><style>
-  :root { --grn:#0a9e5c; --ink:#14151a; --mut:#5c5c66; --line:#e6e6ec; }
+  :root { --vlt:#5b44ec; --ink:#14151a; --mut:#5c5c66; --line:#e6e6ec; }
   * { box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
          color: var(--ink); line-height: 1.62; font-size: 10.8pt; margin: 0; }
@@ -55,11 +55,11 @@ const html = `<!doctype html><html><head><meta charset="utf-8"><style>
   .cover .top { margin-top: 24mm; }
   .cover .logo { width: 24mm; height: 24mm; border-radius: 6mm; display: block; margin-bottom: 9mm; }
   .cover .brand { font-size: 46pt; font-weight: 800; letter-spacing: -0.03em; }
-  .cover .brand .dot { color: var(--grn); }
+  .cover .brand .dot { color: var(--vlt); }
   .cover .rule { border: 0; border-top: 2.5px solid var(--ink); width: 42mm; margin: 7mm 0; }
-  .cover .label { font-size: 11pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.22em; color: var(--grn); }
-  .cover .badge { display: inline-block; margin-top: 6mm; padding: 1.6mm 4mm; border: 1.5px solid var(--grn);
-                  border-radius: 999px; font-size: 9.5pt; font-weight: 700; color: var(--grn); }
+  .cover .label { font-size: 11pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.22em; color: var(--vlt); }
+  .cover .badge { display: inline-block; margin-top: 6mm; padding: 1.6mm 4mm; border: 1.5px solid var(--vlt);
+                  border-radius: 999px; font-size: 9.5pt; font-weight: 700; color: var(--vlt); }
   .cover .tagline { margin-top: 8mm; font-size: 15pt; line-height: 1.5; max-width: 130mm; color: var(--ink); }
   .cover .foot { margin-top: auto; padding-top: 12mm; font-size: 9.5pt; color: var(--mut); border-top: 1px solid var(--line); }
   h2 { font-size: 17pt; font-weight: 800; letter-spacing: -0.01em; margin: 9mm 0 3mm; padding-top: 3mm;
@@ -70,12 +70,12 @@ const html = `<!doctype html><html><head><meta charset="utf-8"><style>
   strong { font-weight: 700; }
   ul, ol { margin: 0 0 3mm; padding-left: 6mm; }
   li { margin-bottom: 1.5mm; break-inside: avoid; }
-  a { color: var(--grn); text-decoration: none; }
+  a { color: var(--vlt); text-decoration: none; }
   hr { border: 0; border-top: 1px solid var(--line); margin: 6mm 0; }
   table { border-collapse: collapse; width: 100%; margin: 3mm 0 4mm; font-size: 9.8pt; break-inside: avoid; }
   th, td { border: 1px solid var(--line); padding: 2mm 3mm; text-align: left; vertical-align: top; }
-  th { background: #f3f6f4; font-weight: 700; }
-  blockquote { margin: 3mm 0; padding: 1mm 4mm; border-left: 3px solid var(--grn); color: var(--mut); break-inside: avoid; }
+  th { background: #f1eefd; font-weight: 700; }
+  blockquote { margin: 3mm 0; padding: 1mm 4mm; border-left: 3px solid var(--vlt); color: var(--mut); break-inside: avoid; }
   code { font-family: ui-monospace, Menlo, monospace; font-size: 9pt; background: #f4f4f6; padding: 0.4mm 1.4mm; border-radius: 3px; }
   figure { margin: 6mm 0; text-align: center; break-inside: avoid; }
   figure svg { max-width: 100%; height: auto; }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { tweenFast } from "@/lib/motion";
+import { playSound } from "@/lib/sound";
 import { Sun, Moon } from "./Icons";
 
 /** Light/dark toggle. Reads the theme set pre-paint by the inline script,
@@ -20,6 +21,8 @@ export default function ThemeToggle({ className = "" }: { className?: string }) 
 
   const toggle = () => {
     const next = theme === "light" ? "dark" : "light";
+    // Airy swish, up toward light / down toward dark.
+    playSound("theme", { dir: next === "light" ? "up" : "down" });
     document.documentElement.setAttribute("data-theme", next);
     try {
       localStorage.setItem("theme", next);
