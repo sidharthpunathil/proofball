@@ -274,9 +274,11 @@ class SoundEngine {
 
   /** Normalized soft tanh transfer curve (unity at |x|=1 so it never drops level):
    *  near-linear for quiet cues, gently rounds loud reward peaks + adds warmth. */
-  private makeSatCurve(k: number): Float32Array {
+  private makeSatCurve(k: number) {
     const n = 1024;
-    const curve = new Float32Array(n);
+    // Back the curve with an explicit ArrayBuffer so its type is
+    // Float32Array<ArrayBuffer>, which is what WaveShaperNode.curve expects.
+    const curve = new Float32Array(new ArrayBuffer(n * 4));
     const norm = Math.tanh(k);
     for (let i = 0; i < n; i++) {
       const x = (i / (n - 1)) * 2 - 1;

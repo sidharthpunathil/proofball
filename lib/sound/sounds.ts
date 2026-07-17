@@ -49,153 +49,155 @@ function scaleNote(level: number): number {
 }
 
 const RECIPES: Record<SoundName, (o: PlayOpts) => void> = {
-  // --- gesture / tactile (fire per interaction, so kept subliminal) ---
+  // --- gesture / tactile: tiny wooden taps, contact-forward, near-subliminal, dry ---
   press: () => {
-    engine.tone({ freq: NOTES.A4, dur: 0.05, type: "sine", gain: 0.09, attack: 0.002, release: 0.05, lowpass: 1800 });
+    engine.fm({ freq: NOTES.A4, dur: 0.06, gain: 0.05, ratio: 1, index: 1.6, indexDecay: 0.03, blip: 12, blipTime: 0.01, contact: 0.5, lowpass: 5000, attack: 0.002, wet: 0.04 });
   },
   navTap: () => {
-    // A muted, almost-subliminal wooden tick. High frequency of use → very quiet.
-    engine.noise({ dur: 0.03, gain: 0.045, filter: "bandpass", freq: 1400, q: 1.2, release: 0.03 });
-    engine.tone({ freq: NOTES.D4, dur: 0.04, type: "sine", gain: 0.05, release: 0.04 });
+    // The quietest cue in the app — a wooden tick, contact over a whisper of body.
+    engine.fm({ freq: NOTES.D4, dur: 0.045, gain: 0.04, ratio: 1, index: 1.2, indexDecay: 0.022, blip: 10, blipTime: 0.009, contact: 0.6, lowpass: 4200, attack: 0.002, wet: 0 });
   },
   toggle: () => {
-    engine.tone({ freq: NOTES.E4, dur: 0.06, type: "triangle", gain: 0.08, release: 0.06, glideTo: NOTES.G4 });
+    engine.fm({ freq: NOTES.E4, dur: 0.07, gain: 0.06, ratio: 1, index: 1.6, indexDecay: 0.03, blip: 10, contact: 0.35, wet: 0.06, pan: -0.08 });
+    engine.fm({ freq: NOTES.G4, when: 0.05, dur: 0.09, gain: 0.055, ratio: 1, index: 1.8, indexDecay: 0.035, blip: 10, contact: 0.3, wet: 0.07, pan: 0.08 });
   },
   copy: () => {
-    engine.tone({ freq: NOTES.E5, dur: 0.08, type: "sine", gain: 0.1, release: 0.08 });
-    engine.tone({ freq: NOTES.A5, when: 0.05, dur: 0.09, type: "sine", gain: 0.08, release: 0.09 });
+    // "Copied" — two glassy bells up, a breath of high air.
+    engine.fm({ freq: NOTES.E5, dur: 0.16, gain: 0.085, ratio: 3, index: 2.2, indexDecay: 0.08, blip: 8, wet: 0.13, pan: -0.1 });
+    engine.fm({ freq: NOTES.A5, when: 0.055, dur: 0.2, gain: 0.075, ratio: 3, index: 2.0, indexDecay: 0.1, blip: 8, wet: 0.15, pan: 0.1 });
+    engine.transient({ when: 0.05, dur: 0.11, gain: 0.028, filter: "highpass", freq: 6500, sweepTo: 9000, wet: 0.12 });
   },
 
-  // Rising call: bright two-note up. Falling call: two-note down. Same shape,
-  // mirrored, so the direction is audible before you look.
+  // Direction call: mirrored wooden-bell plucks (up = E4->A4, down = A4->E4) + air.
   pickUp: () => {
-    engine.tone({ freq: NOTES.E4, dur: 0.07, type: "triangle", gain: 0.13, release: 0.07 });
-    engine.tone({ freq: NOTES.A4, when: 0.045, dur: 0.1, type: "triangle", gain: 0.13, release: 0.1 });
-    engine.noise({ when: 0, dur: 0.05, gain: 0.05, filter: "highpass", freq: 3000, release: 0.05 });
+    engine.fm({ freq: NOTES.E4, dur: 0.12, gain: 0.12, ratio: 2, index: 2.2, indexDecay: 0.06, blip: 18, blipTime: 0.016, contact: 0.35, wet: 0.09, pan: -0.12 });
+    engine.fm({ freq: NOTES.A4, when: 0.05, dur: 0.17, gain: 0.12, ratio: 2, index: 2.1, indexDecay: 0.065, blip: 14, contact: 0.3, wet: 0.11, pan: 0.12 });
+    engine.transient({ dur: 0.04, gain: 0.03, filter: "highpass", freq: 4200, attack: 0.002, wet: 0.06 });
   },
   pickDown: () => {
-    engine.tone({ freq: NOTES.A4, dur: 0.07, type: "triangle", gain: 0.13, release: 0.07 });
-    engine.tone({ freq: NOTES.E4, when: 0.045, dur: 0.1, type: "triangle", gain: 0.13, release: 0.1 });
-    engine.noise({ when: 0, dur: 0.05, gain: 0.05, filter: "highpass", freq: 3000, release: 0.05 });
+    engine.fm({ freq: NOTES.A4, dur: 0.12, gain: 0.12, ratio: 2, index: 2.2, indexDecay: 0.06, blip: 18, blipTime: 0.016, contact: 0.35, wet: 0.09, pan: 0.12 });
+    engine.fm({ freq: NOTES.E4, when: 0.05, dur: 0.17, gain: 0.12, ratio: 2, index: 2.1, indexDecay: 0.065, blip: 14, contact: 0.3, wet: 0.11, pan: -0.12 });
+    engine.transient({ dur: 0.04, gain: 0.03, filter: "highpass", freq: 4200, attack: 0.002, wet: 0.06 });
   },
 
-  // Committing on-chain: a soft mechanical latch — low body + a filtered click.
+  // Committing on-chain: a confident low wooden "seat" (body + sub + contact) + a mid confirm.
   lock: () => {
-    engine.tone({ freq: NOTES.A2, dur: 0.1, type: "sine", gain: 0.16, attack: 0.002, release: 0.1, lowpass: 500 });
-    engine.noise({ dur: 0.05, gain: 0.09, filter: "lowpass", freq: 2200, q: 3, release: 0.05 });
-    engine.tone({ freq: NOTES.A3, when: 0.02, dur: 0.06, type: "sine", gain: 0.07, release: 0.06 });
+    engine.fm({ freq: NOTES.A2, dur: 0.24, gain: 0.16, ratio: 1, index: 2.2, indexDecay: 0.05, blip: 30, blipTime: 0.02, contact: 0.5, sub: 0.45, partial: 4, partialGain: 0.22, lowpass: 1400, wet: 0.1 });
+    engine.fm({ freq: NOTES.A3, when: 0.02, dur: 0.12, gain: 0.075, ratio: 1, index: 1.4, indexDecay: 0.04, contact: 0.2, wet: 0.09 });
   },
 
-  // A market opening: a soft "ready" bell. Fires often, so featherweight.
+  // Market opening: one featherweight "ready" bell + a fifth of shimmer. Fires often -> quiet.
   open: () => {
-    engine.tone({ freq: NOTES.C4, dur: 0.09, type: "sine", gain: 0.06, release: 0.09 });
-    engine.tone({ freq: NOTES.G4, when: 0.06, dur: 0.11, type: "sine", gain: 0.05, release: 0.11 });
+    engine.fm({ freq: NOTES.C4, dur: 0.14, gain: 0.055, ratio: 2, index: 1.8, indexDecay: 0.12, blip: 8, wet: 0.16, pan: -0.06 });
+    engine.fm({ freq: NOTES.G4, when: 0.06, dur: 0.18, gain: 0.045, ratio: 2, index: 1.8, indexDecay: 0.14, blip: 8, wet: 0.18, pan: 0.06 });
   },
 
-  // Final-3s urgency: one dry tick, rising a touch with the level (0,1,2).
+  // Final-3s urgency: a dry wooden "tok", rising A4/C5/E5 with the level. No square.
   tickWarn: ({ level = 0 }) => {
     const f = [NOTES.A4, NOTES.C5, NOTES.E5][Math.min(2, level)] ?? NOTES.A4;
-    engine.tone({ freq: f, dur: 0.04, type: "square", gain: 0.06, release: 0.04, lowpass: 3000 });
+    engine.fm({ freq: f, dur: 0.06, gain: 0.06, ratio: 1, index: 3.0, indexDecay: 0.016, blip: 16, blipTime: 0.009, contact: 0.7, lowpass: 5500, attack: 0.002, wet: 0.03 });
   },
 
   // --- rewards / outcomes ---
-  // Correct call: a bright triad that climbs a step for each streak level, plus
-  // a little air. Higher streak → literally higher-pitched win.
+  // Correct call: a warm bell arpeggio rolled root->third->fifth, climbing a step
+  // per streak level, a mono sub under the root, spread L->R, a kiss of air.
   win: ({ level = 0 }) => {
-    const root = scaleNote(Math.min(level, 5)); // don't run off the top on routine wins
+    const root = scaleNote(Math.min(level, 5));
     const third = scaleNote(Math.min(level + 2, SCALE_UP.length - 1));
     const fifth = scaleNote(Math.min(level + 4, SCALE_UP.length - 1));
-    engine.tone({ freq: root, dur: 0.12, type: "triangle", gain: 0.14, release: 0.12 });
-    engine.tone({ freq: third, when: 0.07, dur: 0.13, type: "triangle", gain: 0.13, release: 0.13 });
-    engine.tone({ freq: fifth, when: 0.14, dur: 0.24, type: "triangle", gain: 0.14, release: 0.22, detune: 6 });
-    engine.noise({ when: 0.14, dur: 0.12, gain: 0.04, filter: "highpass", freq: 5000, release: 0.12 });
+    engine.fm({ freq: root, dur: 0.3, gain: 0.12, ratio: 2, index: 2.8, indexDecay: 0.12, blip: 12, contact: 0.2, sub: 0.4, wet: 0.18, pan: -0.12 });
+    engine.fm({ freq: third, when: 0.075, dur: 0.34, gain: 0.11, ratio: 2, index: 2.8, indexDecay: 0.13, blip: 12, contact: 0.18, wet: 0.2, pan: 0.02 });
+    engine.fm({ freq: fifth, when: 0.15, dur: 0.44, gain: 0.11, ratio: 2, index: 2.9, indexDecay: 0.14, blip: 12, contact: 0.18, wet: 0.24, pan: 0.14 });
+    engine.transient({ when: 0.15, dur: 0.14, gain: 0.03, filter: "highpass", freq: 6000, sweepTo: 10000, wet: 0.18 });
   },
 
-  // Coin: the classic quick two-note "ding" — pairs with the count-up.
+  // Coin: a glassy inharmonic cascade panned L->R — struck glass tumbling, not a square.
   coin: () => {
-    engine.tone({ freq: NOTES.C6, dur: 0.05, type: "square", gain: 0.08, release: 0.05, lowpass: 4000 });
-    engine.tone({ freq: NOTES.E6, when: 0.04, dur: 0.12, type: "square", gain: 0.08, release: 0.12, lowpass: 4500 });
+    const notes = [NOTES.C5, NOTES.E5, NOTES.A5, NOTES.C6];
+    const pans = [-0.2, -0.02, 0.14, 0.28];
+    notes.forEach((f, i) =>
+      engine.fm({ freq: f, when: i * 0.035, dur: 0.14, gain: 0.055 - i * 0.004, ratio: 3, index: 2.0 - i * 0.2, indexDecay: 0.06, blip: 8, attack: 0.002, wet: 0.16, pan: pans[i] }),
+    );
   },
 
-  // Incorrect call: soft, non-punishing. A gentle low fall; a bit more air only
-  // if a big streak actually broke.
+  // Incorrect call: soft, non-punishing — a warm low bell settling D3->A2, sub for
+  // body. A bigger low breath only if a real streak broke.
   lose: ({ big = false }) => {
-    engine.tone({ freq: NOTES.D3, dur: 0.16, type: "sine", gain: 0.12, release: 0.16, glideTo: NOTES.A2, lowpass: 900 });
-    if (big) engine.noise({ dur: 0.28, gain: 0.05, filter: "lowpass", freq: 1200, sweepTo: 300, release: 0.28 });
+    engine.fm({ freq: NOTES.D3, dur: 0.34, gain: 0.11, ratio: 1, index: 1.5, indexDecay: 0.1, glideTo: NOTES.A2, contact: 0.15, sub: 0.35, lowpass: 1300, wet: 0.14 });
+    if (big) engine.transient({ dur: 0.32, gain: 0.045, filter: "lowpass", freq: 1200, sweepTo: 320, attack: 0.02, wet: 0.12 });
   },
 
-  // Streak ticked up a level: a single ascending blip, pitch = level.
+  // Streak +1: a single gliding bell blip, pitch = level, up a step. (Fires ~130ms after win.)
   streakUp: ({ level = 1 }) => {
-    engine.tone({ freq: scaleNote(level), dur: 0.09, type: "triangle", gain: 0.11, release: 0.09, glideTo: scaleNote(level + 1) });
+    engine.fm({ freq: scaleNote(level), dur: 0.16, gain: 0.1, ratio: 2, index: 2.6, indexDecay: 0.08, blip: 10, glideTo: scaleNote(level + 1), contact: 0.2, wet: 0.13, pan: 0.08 });
   },
 
-  // New personal best: a resolved, warmer chord — rarer than a plain win.
+  // New personal best: a slow, resolved 4-bell bloom across the field, warm sub,
+  // long tail, a whisper of air. Rare -> allowed to breathe. (Fires ~280ms after win.)
   best: () => {
     const seq = [NOTES.A4, NOTES.C5, NOTES.E5, NOTES.A5];
+    const pans = [-0.22, -0.07, 0.08, 0.22];
     seq.forEach((f, i) =>
-      engine.tone({ freq: f, when: i * 0.06, dur: 0.34 - i * 0.03, type: "triangle", gain: 0.13, release: 0.3, detune: 5 }),
+      engine.fm({ freq: f, when: i * 0.07, dur: 0.52 - i * 0.03, gain: 0.11, ratio: 2, index: 3.0, indexDecay: 0.16, blip: 10, contact: 0.16, sub: i === 0 ? 0.35 : 0, partial: i === 3 ? 4 : undefined, partialGain: 0.16, wet: 0.24, pan: pans[i] }),
     );
-    engine.noise({ when: 0, dur: 0.3, gain: 0.04, filter: "highpass", freq: 6000, sweepTo: 9000, release: 0.3 });
+    engine.transient({ dur: 0.4, gain: 0.028, filter: "highpass", freq: 6500, sweepTo: 9500, wet: 0.22 });
   },
 
-  // First-connect airdrop: the richest cue in the app — a coin cascade under a
-  // rising pentatonic run and a soft pad.
+  // First-connect airdrop: the richest cue — a rising pentatonic bell run, a glassy
+  // sparkle cascade above, and a warm two-voice pad bed underneath, all in the room.
   welcome: () => {
     const run = [NOTES.A3, NOTES.C4, NOTES.D4, NOTES.E4, NOTES.G4, NOTES.A4, NOTES.C5];
     run.forEach((f, i) =>
-      engine.tone({ freq: f, when: i * 0.05, dur: 0.18, type: "triangle", gain: 0.1, release: 0.16 }),
+      engine.fm({ freq: f, when: i * 0.055, dur: 0.3, gain: 0.078, ratio: 2, index: 2.6, indexDecay: 0.12, blip: 8, contact: 0.15, sub: i === 0 ? 0.3 : 0, wet: 0.2, pan: -0.28 + i * 0.09 }),
     );
-    // coin shower
+    const spark = [NOTES.C6, NOTES.E6, NOTES.A5];
     for (let i = 0; i < 5; i++) {
-      const f = [NOTES.C6, NOTES.E6, NOTES.A5][i % 3];
-      engine.tone({ freq: f, when: 0.12 + i * 0.07, dur: 0.1, type: "square", gain: 0.05, release: 0.1, lowpass: 5000 });
+      engine.fm({ freq: spark[i % 3], when: 0.16 + i * 0.07, dur: 0.16, gain: 0.04, ratio: 3.5, index: 1.8, indexDecay: 0.07, blip: 6, wet: 0.22, pan: i % 2 ? 0.2 : -0.2 });
     }
-    // pad
-    engine.tone({ freq: NOTES.A3, when: 0.05, dur: 0.6, type: "sine", gain: 0.06, attack: 0.05, release: 0.5, detune: 8 });
-    engine.tone({ freq: NOTES.E4, when: 0.05, dur: 0.6, type: "sine", gain: 0.05, attack: 0.05, release: 0.5, detune: -8 });
+    // Warm pad bed (reuses the existing detuned sine tone()).
+    engine.tone({ freq: NOTES.A3, when: 0.05, dur: 0.7, type: "sine", gain: 0.05, attack: 0.06, release: 0.6, detune: 8, lowpass: 2000 });
+    engine.tone({ freq: NOTES.E4, when: 0.05, dur: 0.7, type: "sine", gain: 0.045, attack: 0.06, release: 0.6, detune: -8, lowpass: 2200 });
   },
 
   // --- match events ---
-  // Goal: a stadium swell — a filtered noise roar rising under a low thump.
+  // Goal: a warm stadium swell — a rising bandpass roar, a struck low wood body with
+  // sub gliding up, and a bright bell accent, plus a sparkle top.
   goal: () => {
-    engine.noise({ dur: 0.5, gain: 0.11, filter: "bandpass", freq: 500, sweepTo: 1600, q: 0.7, attack: 0.08, release: 0.42 });
-    engine.tone({ freq: NOTES.A2, dur: 0.22, type: "sine", gain: 0.16, release: 0.22, glideTo: NOTES.C3, lowpass: 400 });
-    engine.tone({ freq: NOTES.A4, when: 0.18, dur: 0.2, type: "triangle", gain: 0.08, release: 0.2 });
+    engine.transient({ dur: 0.5, gain: 0.1, filter: "bandpass", freq: 500, sweepTo: 1600, q: 0.7, attack: 0.08, wet: 0.16 });
+    engine.fm({ freq: NOTES.A2, dur: 0.3, gain: 0.15, ratio: 1, index: 2.2, indexDecay: 0.06, blip: 20, contact: 0.4, sub: 0.5, glideTo: NOTES.C3, lowpass: 900, wet: 0.12 });
+    engine.fm({ freq: NOTES.A4, when: 0.16, dur: 0.32, gain: 0.09, ratio: 2, index: 2.6, indexDecay: 0.14, blip: 12, contact: 0.2, wet: 0.2, pan: 0.1 });
+    engine.fm({ freq: NOTES.E5, when: 0.24, dur: 0.34, gain: 0.075, ratio: 2, index: 2.6, indexDecay: 0.15, blip: 12, wet: 0.22, pan: -0.1 });
+    engine.transient({ when: 0.2, dur: 0.3, gain: 0.03, filter: "highpass", freq: 6000, sweepTo: 11000, wet: 0.16 });
   },
-  // Red card: a darker, dissonant thud — the crowd-swell inverted.
+  // Red card: the lone inharmonic metal color — a tense 1.41:1 thud sinking below A2,
+  // with a muffled low noise fall. Ominous, spacious, never harsh.
   redCard: () => {
-    engine.tone({ freq: NOTES.A2, dur: 0.28, type: "sawtooth", gain: 0.1, release: 0.28, glideTo: NOTES.A2 * 0.94, lowpass: 500 });
-    engine.noise({ dur: 0.3, gain: 0.06, filter: "lowpass", freq: 900, sweepTo: 200, release: 0.3 });
+    engine.fm({ freq: NOTES.A2, dur: 0.36, gain: 0.11, ratio: 1.41, index: 3.5, indexDecay: 0.22, blip: 40, blipTime: 0.03, glideTo: NOTES.A2 * 0.92, contact: 0.35, sub: 0.4, lowpass: 700, wet: 0.18 });
+    engine.transient({ dur: 0.34, gain: 0.05, filter: "lowpass", freq: 1000, sweepTo: 220, attack: 0.02, wet: 0.14 });
   },
 
   // --- leaderboard ---
-  // You climbed a spot: a quick upward whoosh + ding.
+  // Climbed a spot: an airy rise into two glassy-ish bell dings.
   rankUp: () => {
-    engine.noise({ dur: 0.18, gain: 0.06, filter: "highpass", freq: 800, sweepTo: 5000, release: 0.18 });
-    engine.tone({ freq: NOTES.E5, when: 0.1, dur: 0.14, type: "triangle", gain: 0.11, release: 0.14 });
+    engine.transient({ dur: 0.2, gain: 0.05, filter: "highpass", freq: 900, sweepTo: 5500, attack: 0.01, wet: 0.14, pan: 0.05 });
+    engine.fm({ freq: NOTES.E5, when: 0.1, dur: 0.2, gain: 0.1, ratio: 2, index: 2.6, indexDecay: 0.12, blip: 12, contact: 0.18, wet: 0.16, pan: 0.12 });
+    engine.fm({ freq: NOTES.A5, when: 0.16, dur: 0.22, gain: 0.08, ratio: 2, index: 2.4, indexDecay: 0.12, blip: 12, wet: 0.18, pan: -0.1 });
   },
-  // A genuine milestone (new best streak, top-3 entry): a bigger, brighter swell.
+  // Genuine milestone (top-3 entry): a bigger, brighter, airier bell bloom than a plain win.
   milestone: () => {
     const seq = [NOTES.A4, NOTES.E5, NOTES.A5, NOTES.C6];
+    const pans = [-0.24, -0.05, 0.16, 0.28];
     seq.forEach((f, i) =>
-      engine.tone({ freq: f, when: i * 0.05, dur: 0.3, type: "triangle", gain: 0.13, release: 0.28, detune: 6 }),
+      engine.fm({ freq: f, when: i * 0.06, dur: 0.5 - i * 0.035, gain: 0.11, ratio: 2, index: 3.2, indexDecay: 0.16, blip: 12, contact: 0.16, sub: i === 0 ? 0.3 : 0, wet: 0.24, pan: pans[i] }),
     );
-    engine.noise({ dur: 0.4, gain: 0.05, filter: "highpass", freq: 5000, sweepTo: 9000, release: 0.4 });
+    engine.transient({ dur: 0.42, gain: 0.03, filter: "highpass", freq: 6000, sweepTo: 11000, wet: 0.22 });
   },
 
-  // Theme flip: an airy swish, up to light / down to dark.
+  // Theme flip: an airy bandpass swish (up->light / down->dark) + a soft bell glide.
   theme: ({ dir = "up" }) => {
     const up = dir === "up";
-    engine.noise({
-      dur: 0.2,
-      gain: 0.06,
-      filter: "bandpass",
-      freq: up ? 1200 : 3000,
-      sweepTo: up ? 4000 : 800,
-      q: 0.8,
-      release: 0.2,
-    });
-    engine.tone({ freq: up ? NOTES.C4 : NOTES.C5, dur: 0.12, type: "sine", gain: 0.06, release: 0.12, glideTo: up ? NOTES.G4 : NOTES.G3 });
+    engine.transient({ dur: 0.22, gain: 0.05, filter: "bandpass", freq: up ? 1200 : 3000, sweepTo: up ? 4200 : 800, q: 0.8, wet: 0.16 });
+    engine.fm({ freq: up ? NOTES.C4 : NOTES.C5, dur: 0.16, gain: 0.055, ratio: 2, index: 1.8, indexDecay: 0.13, blip: 6, glideTo: up ? NOTES.G4 : NOTES.G3, wet: 0.16, pan: up ? 0.12 : -0.12 });
   },
 };
 
