@@ -11,10 +11,13 @@ services:
     container_name: proofball-pg
     restart: unless-stopped
     ports:
-      - "55432:5432"
+      # Bind to loopback only — never publish the DB on 0.0.0.0 (Docker's iptables
+      # would bypass the host firewall). The app connects via localhost:55432.
+      - "127.0.0.1:55432:5432"
     environment:
       POSTGRES_USER: proofball
-      POSTGRES_PASSWORD: proofball
+      # Override with a strong password on any shared/remote host: POSTGRES_PASSWORD=… in .env
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-proofball}
       POSTGRES_DB: proofball
     volumes:
       - proofball_pg:/var/lib/postgresql/data
@@ -31,13 +34,19 @@ services:
     image: redis:7-alpine
     container_name: proofball-redis
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    environment:
+      # Set REDIS_PASSWORD in .env to require auth. Empty (default) keeps the current
+      # no-auth local-dev behavior. `$$` escapes compose interpolation so the shell
+      # in the container expands it: --requirepass is added only when a password is set.
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command: sh -c 'redis-server --appendonly yes $${REDIS_PASSWORD:+--requirepass "$$REDIS_PASSWORD"}'
     ports:
-      - "63799:6379"
+      # Loopback only (see db note above). App connects via localhost:63799.
+      - "127.0.0.1:63799:6379"
     volumes:
       - proofball_redis:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli $${REDIS_PASSWORD:+-a \"$$REDIS_PASSWORD\"} ping | grep -q PONG"]
       interval: 5s
       timeout: 3s
       retries: 10

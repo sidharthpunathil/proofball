@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
 import { mintProof, proofBalance, proofMint, explorerTx } from "@/lib/token";
-import { getRedis } from "@/lib/redis";
+import { getRedis, rateLimit, clientIp } from "@/lib/redis";
 import { PROOF } from "@/lib/economy";
 
 export const runtime = "nodejs";
@@ -31,6 +31,16 @@ export async function POST(req: Request) {
   const r = getRedis();
   if (!r) {
     return NextResponse.json({ error: "airdrop tracking unavailable" }, { status: 503 });
+  }
+
+  // Anti-abuse: mints spend real (fee-payer) SOL on ATA rent + can farm $PROOF to
+  // freshly generated wallets. The per-wallet SADD guard below only blocks the SAME
+  // wallet twice — it does nothing against Sybil addresses — so bound the burst rate
+  // per source IP AND globally per hour. (Not a substitute for wallet-ownership proof;
+  // it caps the blast radius of an unauthenticated caller.)
+  const ip = clientIp(req);
+  if (!(await rateLimit(`airdrop:ip:${ip}`, 5, 3600))) {
+    return NextResponse.json({ error: "rate limited, try later" }, { status: 429 });
   }
 
   let body: Record<string, unknown> = {};
@@ -68,6 +78,18 @@ return redis.call('SCARD', KEYS[1])`;
     // Past the first N users: no free grant. The wallet stays counted so it will not
     // retry, and it can still connect and play, just without the airdrop.
     return NextResponse.json({ airdropped: false, capReached: true, cap: PROOF.airdropCap });
+  }
+
+  // Global mint-budget ceiling: bounds how much fee-payer SOL an attacker can burn
+  // per hour even across many IPs. Counted only for real mint attempts.
+  if (!(await rateLimit("airdrop:global", 300, 3600))) {
+    // Release the slot so a genuine user can still claim once the window resets.
+    try {
+      await r.srem(KEY, wallet);
+    } catch {
+      /* ignore */
+    }
+    return NextResponse.json({ error: "airdrop temporarily paused, try later" }, { status: 429 });
   }
 
   try {

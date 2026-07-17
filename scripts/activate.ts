@@ -6,6 +6,7 @@
 import { Keypair } from "@solana/web3.js";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
+import { writeFileSync } from "fs";
 
 const ORIGIN = process.env.TXLINE_ORIGIN ?? "https://txline-dev.txodds.com";
 const API_BASE = process.env.TXLINE_API_BASE ?? `${ORIGIN}/api`;
@@ -60,9 +61,13 @@ async function main() {
     console.log("fixtures body:", JSON.stringify(list).slice(0, 200));
   }
 
-  console.log("\n# save these:");
-  console.log(`TXLINE_API_TOKEN=${apiToken}`);
-  console.log(`TXLINE_GUEST_JWT=${jwt}`);
+  // Don't print full secrets to stdout; write them to a 0600 gitignored file.
+  const mask = (s: string) => (s.length <= 10 ? "***" : `${s.slice(0, 6)}…${s.slice(-4)}`);
+  const outFile = ".env.txline.local";
+  writeFileSync(outFile, `TXLINE_API_TOKEN=${apiToken}\nTXLINE_GUEST_JWT=${jwt}\n`, { mode: 0o600 });
+  console.log(`\n# saved to ${outFile} (gitignored, chmod 600). Preview:`);
+  console.log(`TXLINE_API_TOKEN=${mask(apiToken)}`);
+  console.log(`TXLINE_GUEST_JWT=${mask(jwt)}`);
 }
 
 main().catch((e) => {

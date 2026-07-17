@@ -122,15 +122,25 @@ function parseSseBlock(block: string): Record<string, unknown> | null {
   }
 }
 
+/** A TxLINE fixture id is always a short numeric string; reject anything else so
+ * it can never inject path/query/CRLF into a credentialed upstream URL (SSRF /
+ * request-splitting), even if an upstream change ever routes user input here. */
+function safeFixtureId(fixtureId?: string): string | null {
+  if (!fixtureId) return null;
+  return /^[0-9]{1,12}$/.test(fixtureId) ? fixtureId : null;
+}
+
 /** Open + merge the real TxLINE odds/scores streams. Returns null on failure. */
-export async function openLiveStream(creds: Creds, fixtureId?: string): Promise<Response | null> {
+export async function openLiveStream(creds: Creds, fixtureIdRaw?: string): Promise<Response | null> {
   const headers = {
     Authorization: `Bearer ${creds.jwt}`,
     "X-Api-Token": creds.apiToken,
     Accept: "text/event-stream",
     "Cache-Control": "no-cache",
   };
-  const q = fixtureId ? `?fixtureId=${fixtureId}` : "";
+  const fixtureId = safeFixtureId(fixtureIdRaw);
+  if (fixtureIdRaw && !fixtureId) return null; // malformed id → refuse the credentialed fetch
+  const q = fixtureId ? `?fixtureId=${encodeURIComponent(fixtureId)}` : "";
   const base = process.env.TXLINE_API_BASE ?? "https://txline-dev.txodds.com/api";
 
   let oddsRes: Response, scoresRes: Response;

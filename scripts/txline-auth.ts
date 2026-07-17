@@ -17,7 +17,7 @@ import {
 } from "@solana/spl-token";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import path from "path";
 
 const ORIGIN = process.env.TXLINE_ORIGIN ?? "https://txline-dev.txodds.com";
@@ -133,10 +133,20 @@ async function main() {
   }
   if (!apiToken) throw new Error(`activate returned no token: ${rawAct.slice(0, 120)}`);
 
-  console.log("\n✅ Activated. Add these to .env.local / Vercel:\n");
-  console.log(`TXLINE_SUBSCRIBE_TXSIG=${txSig}`);
-  console.log(`TXLINE_API_TOKEN=${apiToken}`);
-  console.log(`TXLINE_GUEST_JWT=${jwt}`);
+  // Secrets: don't dump the full token/JWT to stdout (terminal scrollback / CI logs).
+  // Write the ready-to-paste env lines to a 0600 gitignored file; print only a preview.
+  const mask = (s: string) => (s.length <= 10 ? "***" : `${s.slice(0, 6)}…${s.slice(-4)}`);
+  const outFile = ".env.txline.local";
+  writeFileSync(
+    outFile,
+    `TXLINE_SUBSCRIBE_TXSIG=${txSig}\nTXLINE_API_TOKEN=${apiToken}\nTXLINE_GUEST_JWT=${jwt}\n`,
+    { mode: 0o600 }
+  );
+  console.log(`\n✅ Activated. Wrote credentials to ${outFile} (gitignored, chmod 600).`);
+  console.log("   Copy them into .env.local / Vercel from that file. Preview:");
+  console.log(`   TXLINE_SUBSCRIBE_TXSIG=${txSig}`); // public on-chain tx signature
+  console.log(`   TXLINE_API_TOKEN=${mask(apiToken)}`);
+  console.log(`   TXLINE_GUEST_JWT=${mask(jwt)}`);
   console.log(`\nExplorer: https://explorer.solana.com/tx/${txSig}?cluster=devnet`);
 }
 

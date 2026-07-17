@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildCommitment } from "@/lib/commit";
+import { rateLimit, clientIp } from "@/lib/redis";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,10 @@ const CLUSTER = process.env.NEXT_PUBLIC_SOLANA_CLUSTER ?? "devnet";
  *    fee-payer and return the confirmed signature + explorer link.
  */
 export async function POST(req: Request) {
+  if (!(await rateLimit(`lock:ip:${clientIp(req)}`, 60, 60))) {
+    return NextResponse.json({ error: "rate limited" }, { status: 429 });
+  }
+
   let body: Record<string, unknown> = {};
   try {
     body = await req.json();

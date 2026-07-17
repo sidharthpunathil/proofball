@@ -56,3 +56,33 @@ export async function cacheSetJSON(key: string, value: unknown, ttlSec: number):
     /* ignore */
   }
 }
+
+/**
+ * Fixed-window rate limit. Returns true if the call is ALLOWED (i.e. this hit is
+ * within `limit` per `windowSec`). One atomic INCR (+EXPIRE on the first hit of a
+ * window) per bucket, so it is race-free across concurrent requests.
+ *
+ * Fails OPEN (allows) if Redis is unavailable, so a Redis outage never hard-locks
+ * the app — always pair it with another guard (auth, per-wallet cap) on routes
+ * where abuse spends real resources.
+ */
+export async function rateLimit(key: string, limit: number, windowSec: number): Promise<boolean> {
+  const r = getRedis();
+  if (!r) return true; // no store → don't hard-block; caller has other guards
+  try {
+    const LUA = `local n = redis.call('INCR', KEYS[1])
+if n == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
+return n`;
+    const n = Number(await r.eval(LUA, 1, `proofball:rl:${key}`, String(windowSec)));
+    return n <= limit;
+  } catch {
+    return true;
+  }
+}
+
+/** Best-effort client IP from proxy headers, for per-IP rate limiting. */
+export function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip")?.trim() || "unknown";
+}
