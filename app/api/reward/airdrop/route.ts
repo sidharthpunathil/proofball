@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
 import { mintProof, proofBalance, proofMint, explorerTx } from "@/lib/token";
 import { getRedis, rateLimit, clientIp } from "@/lib/redis";
+import { resolveWallet } from "@/lib/auth";
 import { PROOF } from "@/lib/economy";
 
 export const runtime = "nodejs";
@@ -49,7 +50,14 @@ export async function POST(req: Request) {
   } catch {
     /* empty body -> invalid below */
   }
-  const wallet = String(body.wallet ?? "").trim();
+  // Resolve caller identity. With AUTH_REQUIRED on, this verifies a wallet
+  // signature (SIWS) and rejects unproven callers — closing Sybil farming; with
+  // the flag off (default) it trusts body.wallet as before so the demo is unaffected.
+  const auth = await resolveWallet(body);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error ?? "unauthorized" }, { status: 401 });
+  }
+  const wallet = auth.wallet;
   try {
     new PublicKey(wallet); // throws on a bad address
   } catch {

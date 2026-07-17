@@ -1,4 +1,8 @@
-# ProofBall
+<p align="center">
+  <img src="public/proofball-logo.png" alt="ProofBall logo" width="140" />
+</p>
+
+<h1 align="center">ProofBall</h1>
 
 **Momentum trading for your favorite sports.** Call the live win-probability of a match; every
 result is settled against on-chain-anchored data, so the house can't cheat. Free to play. Built on

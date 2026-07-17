@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { submitScore, topLeaders, getUserScore } from "@/lib/leaderboard";
 import { rateLimit, clientIp } from "@/lib/redis";
+import { resolveWallet, authRequired } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +40,14 @@ export async function POST(req: Request) {
   } catch {
     /* empty body ignored */
   }
+
+  // With AUTH_REQUIRED on, require a verified wallet signature so a caller can't
+  // write/overwrite another player's record; off (default) keeps demo behavior.
+  const auth = await resolveWallet(body);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error ?? "unauthorized" }, { status: 401 });
+  }
+
   const name = String(body.name ?? "").trim().slice(0, 24);
   const rawCoins = Number(body.coins);
   const rawStreak = Number(body.streak);
@@ -46,6 +55,9 @@ export async function POST(req: Request) {
   // values can't poison the shared ZSET.
   const coins = Number.isFinite(rawCoins) ? Math.min(MAX_COINS, Math.max(0, Math.round(rawCoins))) : NaN;
   const streak = Number.isFinite(rawStreak) ? Math.min(10_000, Math.max(0, Math.round(rawStreak))) : 0;
-  if (name && Number.isFinite(coins)) await submitScore(name, coins, streak);
+  // When enforced, key the record on the VERIFIED wallet (identity can't be spoofed);
+  // otherwise fall back to the client display name (legacy demo behavior).
+  const identity = authRequired() ? auth.wallet : name;
+  if (identity && Number.isFinite(coins)) await submitScore(identity, coins, streak);
   return NextResponse.json({ ok: true });
 }
