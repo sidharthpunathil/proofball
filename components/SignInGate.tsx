@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletReadyState } from "@solana/wallet-adapter-base";
@@ -34,6 +34,15 @@ export default function SignInGate() {
   const signOut = useStore((s) => s.signOut);
   const reduce = useReducedMotion();
 
+  // Wallet detection (readyState === Installed) only resolves in the browser, so
+  // the server always sees zero wallets. Gate the detected list on a post-mount
+  // flag so the FIRST client render matches the server's HTML (both take the
+  // "install a wallet" branch); the real wallet list appears on the next render.
+  // Without this the client detects Phantom immediately → branch mismatch → the
+  // hydration error.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   // Wallet connected: your public key is your identity. No password, no mock.
   useEffect(() => {
     if (publicKey && !storeUser) {
@@ -52,7 +61,7 @@ export default function SignInGate() {
     if (wallet && !connected && !connecting) void connect().catch(() => {});
   }, [wallet, connected, connecting, connect]);
 
-  const detected = wallets.filter((w) => w.readyState === WalletReadyState.Installed);
+  const detected = mounted ? wallets.filter((w) => w.readyState === WalletReadyState.Installed) : [];
 
   return (
     <AnimatePresence>
