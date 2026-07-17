@@ -354,11 +354,15 @@ body {
     position: fixed;
     inset: 0;
   }
-  .page-desk .device-roadmap {
+  /* Pin the whole corner clusters (not the individual pills) so BOTH children
+     stay put while the page scrolls: [Home][Roadmap] left, [Theme][Whitepaper]
+     right. Pinning a single pill would pull it out of its flex row and leave
+     the Home link + theme toggle stranded behind it. */
+  .page-desk .device-top-left {
     position: fixed;
     inset: 32px auto auto 32px;
   }
-  .page-desk .device-paper {
+  .page-desk .device-top-right {
     position: fixed;
     inset: 32px 32px auto auto;
   }
