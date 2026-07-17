@@ -87,6 +87,7 @@ interface StoreState {
   signIn: (name: string, wallet: string) => void;
   signOut: () => void;
   dismissWelcome: () => void;
+  retryAirdrop: () => void;
   refreshProof: () => Promise<void>;
   openMarket: (now: number) => void;
   setPick: (dir: PickDir) => void;
@@ -201,25 +202,24 @@ export const useStore = create<StoreState>()(
     // first-time player onto the shared board — we must NOT eagerly post the
     // local default here, or it would reset a returning player's lower score.
     void get().restoreScore(name);
-    // Mint the one-time welcome airdrop of $PROOF to this wallet (server is the
-    // mint authority). Idempotent server-side, so reconnecting never re-airdrops.
-    void fetch("/api/reward/airdrop", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ wallet }),
-    })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.airdropped) set({ welcome: { amount: d.amount, url: d.explorerUrl }, proof: d.balance ?? 0 });
-        else if (typeof d?.balance === "number") set({ proof: d.balance });
-      })
-      .catch(() => {
-        /* airdrop is best-effort; play continues */
-      });
+    // Claim the one-time welcome airdrop. The server is the mint authority and is
+    // idempotent, so a reconnect never re-airdrops. claimWelcomeAirdrop retries the
+    // cold-start 503 (a freshly-woken instance rejects its first Redis call, then
+    // succeeds warm) so a fresh wallet is never left silently at 0, and always
+    // resolves to a visible outcome — a toast or a quietly-updated balance.
+    void claimWelcomeAirdrop(wallet);
   },
 
   signOut: () => set({ user: null, current: null, welcome: null, proof: 0 }),
   dismissWelcome: () => set({ welcome: null }),
+  // The error toast's "Retry": clear the notice and re-run the claim, so the next
+  // terminal state (granted / error) is what surfaces.
+  retryAirdrop: () => {
+    const wallet = get().user?.wallet;
+    if (!wallet) return;
+    set({ welcome: null });
+    void claimWelcomeAirdrop(wallet);
+  },
 
   // Pull the wallet's current on-chain $PROOF balance (shown on the profile).
   refreshProof: async () => {
@@ -397,6 +397,67 @@ interface SharedRow {
   name: string;
   coins: number;
   streak: number;
+}
+
+// Retry budget for the welcome airdrop. The airdrop route hard-fails (503) on the
+// first Redis command against a cold serverless instance, then succeeds once warm,
+// so these transient statuses are worth a short backed-off retry rather than a
+// silent 0-balance. Non-retryable statuses (429 burst, 4xx) fall straight to the
+// error toast, which offers a manual retry.
+const AIRDROP_RETRIES = 4;
+const AIRDROP_RETRYABLE = new Set([500, 502, 503, 504]);
+const airdropBackoff = (attempt: number) => 400 + attempt * 600; // 0.4s, 1.0s, 1.6s, 2.2s
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Claim the one-time welcome airdrop for `wallet`, tolerant of the cold-start race
+ * above. Retries the transient statuses and ALWAYS resolves to a visible outcome so
+ * a new wallet is never left silently at 0 $PROOF:
+ *   • airdropped        → the celebratory "granted" toast, balance updated
+ *   • already / capped  → balance quietly reflected, no toast (a reconnect)
+ *   • exhausted / 4xx   → an "error" toast offering a manual retry
+ * Every state write is guarded on the wallet still being the current one, so a
+ * mid-flight account switch or sign-out can never clobber the new session.
+ */
+async function claimWelcomeAirdrop(wallet: string, attempt = 0): Promise<void> {
+  const isCurrent = () => useStore.getState().user?.wallet === wallet;
+  try {
+    const res = await fetch("/api/reward/airdrop", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ wallet }),
+    });
+    const d = (await res.json().catch(() => null)) as
+      | { airdropped?: boolean; amount?: number; explorerUrl?: string; balance?: number }
+      | null;
+    if (!isCurrent()) return;
+    if (res.ok) {
+      if (d?.airdropped) {
+        useStore.setState({
+          welcome: { kind: "granted", amount: d.amount ?? 0, url: d.explorerUrl },
+          proof: d.balance ?? 0,
+        });
+      } else if (typeof d?.balance === "number") {
+        useStore.setState({ proof: d.balance }); // already funded / capped — no toast
+      }
+      return; // any 2xx is a benign, resolved outcome
+    }
+    if (AIRDROP_RETRYABLE.has(res.status) && attempt < AIRDROP_RETRIES) {
+      await wait(airdropBackoff(attempt));
+      if (isCurrent()) await claimWelcomeAirdrop(wallet, attempt + 1);
+      return;
+    }
+    useStore.setState({ welcome: { kind: "error" } });
+  } catch {
+    // Network / transport error — retry, then surface the error toast.
+    if (!isCurrent()) return;
+    if (attempt < AIRDROP_RETRIES) {
+      await wait(airdropBackoff(attempt));
+      if (isCurrent()) await claimWelcomeAirdrop(wallet, attempt + 1);
+      return;
+    }
+    useStore.setState({ welcome: { kind: "error" } });
+  }
 }
 
 // Fire-and-forget on-chain payout of a won call: mints the reward as REAL devnet

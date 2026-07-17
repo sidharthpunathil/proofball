@@ -51,8 +51,9 @@ export default function SoundLayer() {
         }
       }
 
-      // First-connect welcome airdrop → the app's richest cue.
-      if (!prev.welcome && s.welcome) playSound("welcome");
+      // First-connect welcome airdrop → the app's richest cue. Only a real grant
+      // celebrates; the error toast (a failed claim) stays silent.
+      if (prev.welcome?.kind !== "granted" && s.welcome?.kind === "granted") playSound("welcome");
 
       // Big match event (goal / red card) rides the existing needle flash.
       if (s.lastEvent && s.lastEvent.id !== prev.lastEvent?.id && s.lastEvent.big) {
