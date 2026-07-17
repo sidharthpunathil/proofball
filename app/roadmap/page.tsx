@@ -141,7 +141,7 @@ export default function RoadmapPage() {
         This is the plan, not a promise of dates.
         <br />
         <a
-          href="/ProofBall-Whitepaper.pdf"
+          href="/whitepaper"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-ink2 transition-colors hover:text-ink"

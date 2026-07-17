@@ -155,7 +155,7 @@ function DeskChrome() {
         <ThemeToggle className="!h-[38px] !w-[38px]" />
         <a
           className="device-paper"
-          href="/ProofBall-Whitepaper.pdf"
+          href="/whitepaper"
           target="_blank"
           rel="noopener noreferrer"
         >
