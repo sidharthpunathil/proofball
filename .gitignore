@@ -1,0 +1,48 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# env files, NEVER commit real secrets. Only *.example templates are committed.
+.env
+.env.local
+.env.development
+.env.production
+.env*.local
+!.env.example
+!.env.production.example
+
+# solana keys, NEVER commit
+/_keys/
+*.keypair.json
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# vercel
+.vercel
+
+# isolated dev build dir
+/.next-run/
+# installed agent skills (tooling, not app)
+/.agents/
+# installed Claude/agent skills + lockfile (tooling, not app)
+/.claude/
+skills-lock.json
