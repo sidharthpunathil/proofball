@@ -23,6 +23,25 @@ export const PROOF = {
 
   // House rake on each pool, in basis points (0 = none, fully returned to winners).
   rakeBps: 0,
+
+  // Win reward schedule. A correct call pays `base` $PROOF, plus `streakStep` for
+  // each call in the current streak, capped at `streakStepCap` steps. These are
+  // minted as REAL devnet $PROOF to the winner's wallet (see /api/reward/win), so
+  // the server clamps any claimed amount to `maxWin` before minting.
+  reward: {
+    base: 50,
+    streakStep: 15,
+    streakStepCap: 6,
+  },
 } as const;
+
+/** Reward for a correct call at a given (post-win) streak, in whole $PROOF. */
+export function winReward(streak: number): number {
+  const steps = Math.min(Math.max(streak - 1, 0), PROOF.reward.streakStepCap);
+  return PROOF.reward.base + steps * PROOF.reward.streakStep;
+}
+
+/** The largest reward a single correct call can ever pay (the server-side clamp). */
+export const MAX_WIN = PROOF.reward.base + PROOF.reward.streakStepCap * PROOF.reward.streakStep;
 
 export const PROOF_DECIMALS = PROOF.decimals;
