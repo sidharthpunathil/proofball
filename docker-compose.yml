@@ -1,0 +1,47 @@
+# Local Postgres for ProofBall — a materialized cache of the TxLINE World Cup
+# feed's FINISHED matches (immutable knockout results). Runs on a deliberately
+# odd port (55432) so it never collides with a system Postgres on 5432.
+#
+#   docker compose up -d        # start
+#   npm run matches:sync        # populate from the live TxLINE feed
+#   docker compose down         # stop (data persists in the named volume)
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: proofball-pg
+    restart: unless-stopped
+    ports:
+      - "55432:5432"
+    environment:
+      POSTGRES_USER: proofball
+      POSTGRES_PASSWORD: proofball
+      POSTGRES_DB: proofball
+    volumes:
+      - proofball_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U proofball -d proofball"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Shared state for multi-user scale: the global leaderboard (ZSET) and a
+  # cross-instance cache of the TxLINE fixtures/odds feed. Odd port 63799 so it
+  # never collides with a local Redis on 6379.
+  redis:
+    image: redis:7-alpine
+    container_name: proofball-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "63799:6379"
+    volumes:
+      - proofball_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  proofball_pg:
+  proofball_redis:

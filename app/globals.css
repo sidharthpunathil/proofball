@@ -1,0 +1,891 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Light (default) ───────────────────────────────────────── */
+:root {
+  --bg: 244 244 247;
+  --surface: 255 255 255;
+  --subtle: 240 240 244;
+  --ink: 12 12 14;
+  --ink2: 92 92 100;
+  --mut: 108 108 120;
+  --faint: 150 150 160;
+  --line: 232 232 238;
+  --line2: 220 220 228;
+  --grn: 9 150 88;
+  --grnsoft: 232 248 240;
+  --red: 224 58 48;
+  --redsoft: 254 236 234;
+  --blue: 47 111 237;
+  --amber: 176 116 6;
+  --stage: radial-gradient(135% 95% at 50% -12%, #f8f7fa 0%, #ebecf3 52%, #e4e7f1 100%);
+  --shadow-card: 0 1px 2px rgba(20, 20, 40, 0.05), 0 10px 30px -16px rgba(20, 20, 50, 0.2);
+  --shadow-soft: 0 1px 2px rgba(20, 20, 40, 0.05), 0 4px 14px -10px rgba(20, 20, 50, 0.14);
+  --shadow-btn: 0 2px 10px -3px rgba(0, 0, 0, 0.35);
+  /* Single source of truth for the house easing curves. Mirrored by
+     EASE_OUT / EASE_BACK in lib/motion.ts (JS) so keyframes and framer agree. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Desktop iPhone frame (see the "Device frame" block below). Natural
+     titanium on light, the screen colour matches the stage's top gradient
+     stop so the status bar reads as seamless with the app. */
+  --desk: radial-gradient(125% 120% at 50% -8%, #eef0f6 0%, #e3e6ef 46%, #d3d7e4 100%);
+  --desk-glow: radial-gradient(46% 40% at 50% 40%, rgba(9, 150, 88, 0.09), transparent 70%);
+  /* Neutral key light directly behind the phone so the titanium edge catches
+     light and the device lifts off the desk. */
+  --desk-spot: radial-gradient(44% 42% at 50% 44%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 70%);
+  --frame: linear-gradient(135deg, #f3f4f8 0%, #d0d4de 20%, #eef0f5 42%, #c4c8d4 60%, #e6e8ef 80%, #ccd0db 100%);
+  --frame-edge: rgba(255, 255, 255, 0.7);
+  --frame-spec: rgba(255, 255, 255, 0.95);
+  --frame-inner: rgba(10, 12, 20, 0.24);
+  --frame-shadow: 0 2px 6px rgba(18, 22, 40, 0.1), 0 30px 60px -28px rgba(18, 22, 40, 0.42),
+    0 64px 110px -46px rgba(18, 22, 40, 0.34);
+  /* Faint glass sheen raked across the display; reads mostly on dark UIs. */
+  --screen-glare: linear-gradient(122deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 16%, rgba(255, 255, 255, 0) 40%);
+  --home-ind: rgba(18, 18, 28, 0.3);
+  --screen-bg: #f8f7fa;
+  --btn: linear-gradient(180deg, #dfe2ea, #b4b9c6);
+  /* Living ambient behind the app: three slow, blurred colour washes. Kept low
+     on light so text stays crisp. See .stage-fx in the device-frame block. */
+  --fx-a: rgba(9, 150, 88, 0.12);
+  --fx-b: rgba(47, 111, 237, 0.09);
+  --fx-c: rgba(120, 90, 240, 0.07);
+  color-scheme: light;
+}
+
+/* ── Dark ──────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg: 14 15 20;
+  --surface: 24 25 32;
+  --subtle: 33 35 44;
+  --ink: 245 245 248;
+  --ink2: 162 164 174;
+  --mut: 130 132 142;
+  --faint: 100 102 112;
+  --line: 38 40 50;
+  --line2: 52 54 66;
+  --grn: 45 214 130;
+  --grnsoft: 18 42 31;
+  --red: 255 99 92;
+  --redsoft: 50 26 26;
+  --blue: 104 160 255;
+  --amber: 240 178 66;
+  --stage: radial-gradient(135% 95% at 50% -12%, #1b1d26 0%, #101116 60%, #0c0d11 100%);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5), 0 14px 36px -20px rgba(0, 0, 0, 0.8);
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-btn: 0 2px 12px -3px rgba(0, 0, 0, 0.7);
+  /* Black-titanium frame on a near-black desk for dark mode. */
+  --desk: radial-gradient(125% 120% at 50% -8%, #191a22 0%, #0d0e12 55%, #070709 100%);
+  --desk-glow: radial-gradient(48% 42% at 50% 42%, rgba(45, 214, 130, 0.11), transparent 72%);
+  /* Cool key light behind the phone: the one thing that separates the black
+     titanium silhouette from the near-black desk. Without it the phone vanishes. */
+  --desk-spot: radial-gradient(46% 44% at 50% 43%, rgba(150, 162, 186, 0.2), rgba(120, 132, 156, 0.05) 46%, rgba(0, 0, 0, 0) 72%);
+  --frame: linear-gradient(135deg, #595b63 0%, #26282e 20%, #5c5e67 43%, #1b1c21 62%, #494b52 80%, #26282e 100%);
+  --frame-edge: rgba(255, 255, 255, 0.22);
+  --frame-spec: rgba(255, 255, 255, 0.3);
+  --frame-inner: rgba(0, 0, 0, 0.62);
+  --frame-shadow: 0 44px 90px -30px rgba(0, 0, 0, 0.9), 0 16px 40px -18px rgba(0, 0, 0, 0.72);
+  --screen-glare: linear-gradient(122deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.035) 15%, rgba(255, 255, 255, 0) 40%);
+  --home-ind: rgba(240, 242, 248, 0.5);
+  --screen-bg: #1b1d26;
+  --btn: linear-gradient(180deg, #55575f, #2a2c32);
+  /* Living ambient behind the app: brighter on the dark canvas so the washes
+     read as depth without lifting the text off the page. */
+  --fx-a: rgba(45, 214, 130, 0.26);
+  --fx-b: rgba(104, 160, 255, 0.2);
+  --fx-c: rgba(150, 120, 255, 0.17);
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: rgb(var(--bg));
+  color: rgb(var(--ink));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overscroll-behavior-y: none;
+  letter-spacing: -0.014em;
+}
+
+html,
+body {
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.stage {
+  background: var(--stage);
+  background-attachment: fixed;
+  min-height: 100vh;
+  /* `isolation` makes .stage a stacking context so the ambient field (z-index:-1)
+     nests between the stage's base gradient and the app content, while the app's
+     own fixed chrome (nav, sheets) keeps layering above content as before. */
+  isolation: isolate;
+}
+
+/* ── Living ambient field ──────────────────────────────────────
+   Three big, soft, slowly drifting colour washes behind every screen. Fixed to
+   the display (so it does not scroll), clipped to it, and non-interactive. On
+   desktop the phone's .device-screen carries a transform, so `position: fixed`
+   here pins to the phone and is clipped to the rounded screen; on a real phone
+   it pins to the viewport. Motion is transform + opacity only (compositor). */
+.stage-fx {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+.fx-blob {
+  position: absolute;
+  width: 68vmax;
+  height: 68vmax;
+  border-radius: 50%;
+  filter: blur(60px);
+  will-change: transform, opacity;
+}
+.fx-a {
+  top: -22%;
+  left: -18%;
+  background: radial-gradient(circle at 50% 50%, var(--fx-a), transparent 68%);
+  animation: fxDriftA 16s ease-in-out infinite;
+}
+.fx-b {
+  bottom: -26%;
+  right: -20%;
+  background: radial-gradient(circle at 50% 50%, var(--fx-b), transparent 68%);
+  animation: fxDriftB 20s ease-in-out infinite;
+}
+.fx-c {
+  top: 24%;
+  left: 30%;
+  background: radial-gradient(circle at 50% 50%, var(--fx-c), transparent 68%);
+  animation: fxDriftC 13s ease-in-out infinite;
+}
+/* Inspired by the classic animate-blob wash: each blob travels a clearly
+   visible loop (translate up to ~20% of the viewport, scale 0.9–1.24), so the
+   light behind the app is unmistakably moving rather than a static tint. The
+   13–20s periods (the old 24–32s read as still) are deliberately mismatched so
+   the three blobs never resync; each wanders three waypoints (0/33/66) so the
+   green, blue and violet cross and blend instead of ping-ponging. 0% and 100%
+   match for a seamless loop and a composed reduced-motion resting frame.
+   Transform + opacity only (the blur is rasterised once, then the cached layer
+   is transformed) so it stays on the compositor and never crawls like grain. */
+@keyframes fxDriftA {
+  0% {
+    transform: translate3d(-8%, -6%, 0) scale(1);
+    opacity: 0.8;
+  }
+  33% {
+    transform: translate3d(17%, 12%, 0) scale(1.2);
+    opacity: 1;
+  }
+  66% {
+    transform: translate3d(6%, 23%, 0) scale(0.94);
+    opacity: 0.82;
+  }
+  100% {
+    transform: translate3d(-8%, -6%, 0) scale(1);
+    opacity: 0.8;
+  }
+}
+@keyframes fxDriftB {
+  0% {
+    transform: translate3d(8%, 8%, 0) scale(1.06);
+    opacity: 0.72;
+  }
+  33% {
+    transform: translate3d(-17%, -9%, 0) scale(0.9);
+    opacity: 1;
+  }
+  66% {
+    transform: translate3d(-21%, 12%, 0) scale(1.2);
+    opacity: 0.82;
+  }
+  100% {
+    transform: translate3d(8%, 8%, 0) scale(1.06);
+    opacity: 0.72;
+  }
+}
+@keyframes fxDriftC {
+  0% {
+    transform: translate3d(6%, -8%, 0) scale(1);
+    opacity: 0.58;
+  }
+  33% {
+    transform: translate3d(-21%, 15%, 0) scale(1.24);
+    opacity: 0.95;
+  }
+  66% {
+    transform: translate3d(17%, 19%, 0) scale(0.95);
+    opacity: 0.72;
+  }
+  100% {
+    transform: translate3d(6%, -8%, 0) scale(1);
+    opacity: 0.58;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Hold the washes at their resting frame: colour and depth stay, motion stops. */
+  .fx-blob {
+    animation: none !important;
+  }
+}
+
+/* ── Base gradient (static) ────────────────────────────────────
+   The dark stage/desk radial is a still base. ALL perceptible motion lives in
+   the colour washes above (.fx-blob), so the base never scales or drifts. An
+   earlier version drifted a scaled copy of this gradient on a ::before; that
+   copy beat against the static base and its 8-bit banding contours crawled
+   like a moving texture, which is exactly what we removed here. On a real phone
+   the stage gradient is the page background, so a viewport-fixed copy keeps it
+   pinned while content scrolls (background-attachment: fixed is unreliable on
+   mobile). This layer is static — no animation, no transform. */
+@media (max-width: 1023px) {
+  .stage::before,
+  .home-stage::before,
+  .page-stage::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--stage);
+  }
+}
+
+/* ── Home desk ────────────────────────────────────────────────
+   The home page renders on the SAME desk as the match phone (ambient + corner
+   chrome) but without the phone: the lobby sits centred and fits the viewport,
+   so the home page never scrolls on desktop. Below lg it dissolves to a plain
+   scroll container, exactly like .stage. */
+.home-desk {
+  display: contents;
+}
+.home-stage {
+  background: var(--stage);
+  background-attachment: fixed;
+  min-height: 100vh;
+  /* Stacking context so the ambient field (z-index:-1) nests between this base
+     gradient and the lobby content (matches .stage). On desktop the min-width
+     rule below already sets z-index:1, so this is the mobile equivalent. */
+  isolation: isolate;
+}
+@media (min-width: 1024px) {
+  .home-desk {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100dvh;
+    overflow: hidden;
+    padding: 24px;
+    background: var(--desk);
+    background-attachment: fixed;
+    /* Stacking context so the ambient glow (z-index:-1) nests above the base
+       desk gradient but below the lobby. */
+    isolation: isolate;
+  }
+  .home-stage {
+    position: relative;
+    z-index: 1;
+    min-height: 0;
+    width: 100%;
+    max-width: 1040px;
+    max-height: 100%;
+    background: transparent;
+  }
+}
+
+/* Scrollable full-width desk for long pages (/results, /roadmap): same desk and
+   corner chrome as the home page, but the page scrolls instead of fitting the
+   viewport. Below lg it dissolves to a plain scroll container like .stage. */
+.page-desk {
+  display: contents;
+}
+.page-stage {
+  background: var(--stage);
+  background-attachment: fixed;
+  min-height: 100vh;
+  isolation: isolate;
+}
+@media (min-width: 1024px) {
+  .page-desk {
+    position: relative;
+    min-height: 100dvh;
+    background: var(--desk);
+    background-attachment: fixed;
+    /* Stacking context so the ambient glow sits above the base desk gradient. */
+    isolation: isolate;
+  }
+  .page-stage {
+    position: relative;
+    z-index: 1;
+    background: transparent;
+  }
+  /* Pin the ambient + corner chrome to the viewport while the page scrolls.
+     Explicit inset (top right bottom left) so right-anchored chrome is not
+     thrown off by any shared left/right rule. */
+  .page-desk > .device-ambient {
+    position: fixed;
+    inset: 0;
+  }
+  .page-desk .device-roadmap {
+    position: fixed;
+    inset: 32px auto auto 32px;
+  }
+  .page-desk .device-paper {
+    position: fixed;
+    inset: 32px 32px auto auto;
+  }
+  .page-desk .device-credit {
+    position: fixed;
+    inset: auto auto 32px 32px;
+  }
+}
+
+/* the glossy disc that sits inside the black action pill */
+.disc {
+  background: conic-gradient(
+    from 210deg,
+    #e9ecf3,
+    #c9cfdd 20%,
+    #eef0f6 40%,
+    #b9c6e0 55%,
+    #f2f3f8 72%,
+    #cdd6e6 88%,
+    #e9ecf3
+  );
+}
+
+/* ── Reduced motion ────────────────────────────────────────────
+   Honor the OS "reduce motion" setting for CSS-driven animation.
+   framer-motion components already gate on useReducedMotion(); this
+   covers the keyframe/transition animations that don't. We keep
+   opacity-only feedback (nothing moves) and neutralise looping and
+   travelling motion rather than removing all trace of state changes. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* Kill looping/keyframe animation (the vestibular offenders) and disable
+       smooth scroll. Opacity and colour transitions (incl. the theme
+       cross-fade) are deliberately kept: they aid comprehension without moving
+       anything on screen. Travelling motion in framer is gated in JS via
+       useReducedMotion(); CSS transform hovers use the motion-safe: variant. */
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+  /* Keep the "live" pulse legible as a static, calm opacity dim
+     instead of a scaling loop (conveys state without vestibular motion). */
+  .animate-pulse2 {
+    animation: none !important;
+    opacity: 0.7;
+  }
+  .animate-shimmer {
+    animation: none !important;
+  }
+}
+
+/* ── Device frame ──────────────────────────────────────────────
+   Below `lg` (a real phone / tablet) the frame is a pure passthrough:
+   `display: contents` dissolves every wrapper so `.stage` renders exactly as
+   it did before this component existed. All the iPhone chrome lives inside a
+   `min-width: 1024px` query, so the app ships zero framing on the devices it
+   is actually built for. See components/DeviceFrame.tsx. */
+.device-root,
+.device-shell,
+.device,
+.device-screen {
+  display: contents;
+}
+.device-ambient,
+.device-buttons,
+.device-statusbar,
+.device-island,
+.device-home,
+.device-caption,
+.device-credit,
+.device-qr,
+.device-top-left,
+.device-top-right {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .device-root {
+    /* the desk the phone sits on */
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* A fixed height (not min-height) is load-bearing: `transform: scale` does
+       not shrink layout size, so with min-height the container would grow to the
+       unscaled rig height and mis-centre the phone. A fixed 100dvh box centres
+       the scaled phone in the real viewport and clips the unscaled overflow. */
+    height: 100dvh;
+    padding: 10px;
+    overflow: hidden;
+    background: var(--desk);
+    background-attachment: fixed;
+    /* Stacking context so the ambient glow nests above the base desk gradient
+       but below the phone. */
+    isolation: isolate;
+  }
+  .device-ambient {
+    display: block;
+    position: absolute;
+    inset: 0;
+    /* Neutral key light behind the phone (top layer) over the brand-green desk
+       glow, so black titanium reads against the near-black desk. */
+    background: var(--desk-spot), var(--desk-glow);
+    pointer-events: none;
+  }
+
+  .device-shell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 26px;
+    position: relative;
+    z-index: 1;
+    /* The shell now holds only the phone (no under-phone caption), so scaling it
+       up enlarges the SCREEN directly. Tall desktops render larger than native
+       (1.2); the fit-to-height ladder below steps this down on shorter windows. */
+    --device-scale: 1.2;
+    transform: scale(var(--device-scale, 1));
+    transform-origin: center;
+  }
+
+  .device {
+    /* metric-ish iPhone 15/16 Pro: 393 x 852 screen inside a titanium frame */
+    --dw: 393px;
+    --dh: 852px;
+    --bezel: 11px;
+    --frame-r: 66px;
+    --screen-r: 52px;
+    position: relative;
+    padding: var(--bezel);
+    border-radius: var(--frame-r);
+    background: var(--frame);
+    /* Bright specular lip along the top edge, a hairline rim all round, a soft
+       shade under the bottom edge, then the grounding drop shadow. Together they
+       read as brushed metal catching a single top light. */
+    box-shadow: inset 0 1.5px 0.5px var(--frame-spec), inset 0 0 0 1px var(--frame-edge),
+      inset 0 -2px 3px rgba(0, 0, 0, 0.34), inset 0 0 5px rgba(0, 0, 0, 0.28), var(--frame-shadow);
+  }
+
+  /* the physical side buttons, peeking out of the titanium edge */
+  .device-buttons {
+    display: block;
+  }
+  .device-buttons span {
+    position: absolute;
+    background: var(--btn);
+    box-shadow: inset 0 1px 0 var(--frame-edge), 0 1px 2px rgba(0, 0, 0, 0.35);
+  }
+  .db-action {
+    left: -2px;
+    top: 138px;
+    width: 3px;
+    height: 30px;
+    border-radius: 3px 0 0 3px;
+  }
+  .db-volup {
+    left: -2px;
+    top: 196px;
+    width: 3px;
+    height: 58px;
+    border-radius: 3px 0 0 3px;
+  }
+  .db-voldn {
+    left: -2px;
+    top: 266px;
+    width: 3px;
+    height: 58px;
+    border-radius: 3px 0 0 3px;
+  }
+  .db-power {
+    right: -2px;
+    top: 208px;
+    width: 3px;
+    height: 96px;
+    border-radius: 0 3px 3px 0;
+  }
+
+  .device-screen {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: var(--dw);
+    height: var(--dh);
+    border-radius: var(--screen-r);
+    overflow: hidden;
+    background: var(--screen-bg);
+    /* Load-bearing: `transform` makes this element the containing block for the
+       app's `position: fixed` chrome (BottomNav, SignInGate), so they pin to
+       the phone rather than the browser window. `overflow: hidden` then clips
+       them to the rounded screen. */
+    transform: translateZ(0);
+    /* Dark "antenna" lip where the glass meets titanium + a faint inner shade. */
+    box-shadow: inset 0 0 0 1px var(--frame-inner), inset 0 0 8px rgba(0, 0, 0, 0.26);
+  }
+
+  /* Raked glass reflection over the display. Sits above the app content but
+     below the status bar (z 3) and Dynamic Island (z 4), so it never dims the
+     glyphs or the island. pointer-events:none keeps the live app clickable. */
+  .device-screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--screen-glare);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* iOS status bar: a real 46px row that pushes the app down */
+  .device-statusbar {
+    display: flex;
+    flex: 0 0 46px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 30px 0 34px;
+    color: rgb(var(--ink));
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    z-index: 3;
+  }
+  .sb-time {
+    font-variant-numeric: tabular-nums;
+    padding-top: 2px;
+  }
+  .sb-glyphs {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding-top: 2px;
+  }
+
+  /* Dynamic Island, centred over the status bar */
+  .device-island {
+    display: block;
+    position: absolute;
+    top: 11px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 122px;
+    height: 34px;
+    border-radius: 20px;
+    /* Not flat #000: a faint top gloss + inner shade read as glass, and a soft
+       drop seats the island into the display instead of floating on it. */
+    background: linear-gradient(180deg, #141518 0%, #060608 46%, #000 100%);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.09),
+      inset 0 -2px 3px rgba(0, 0, 0, 0.6);
+    z-index: 4;
+  }
+  .di-lens {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #2a3550 0%, #0a0d16 60%, #000 100%);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  }
+
+  /* iOS home indicator: a pill pinned to the bottom of the display. Adapts
+     colour per theme (dark on light UI, light on dark UI). Non-interactive and
+     below the app's fixed nav (z 40), so on match screens the nav pill covers
+     it and on the lobby it reads clean. */
+  .device-home {
+    display: block;
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 140px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--home-ind);
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  /* `.stage` becomes the scroll surface inside the screen. Neutralise its
+     `min-height: 100vh` (we are no longer the viewport) and let flex give it a
+     definite height so the app's `min-h-screen` columns resolve against it. */
+  .device-screen > .stage {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background-attachment: scroll;
+  }
+  .device-screen > .stage::-webkit-scrollbar {
+    display: none;
+  }
+  .device-screen > .stage {
+    scrollbar-width: none;
+  }
+  .device-screen .min-h-screen {
+    min-height: 100% !important;
+  }
+
+  /* the label under the phone */
+  .device-caption {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    text-align: center;
+  }
+  .dc-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: rgb(var(--ink2));
+  }
+  .dc-sub {
+    font-size: 12.5px;
+    color: rgb(var(--faint));
+  }
+
+  /* ── Top-of-desk corners: [Home][Roadmap] left, [Theme][Whitepaper] right ── */
+  .device-top-left,
+  .device-top-right {
+    position: absolute;
+    top: 32px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .device-top-left {
+    left: 32px;
+  }
+  .device-top-right {
+    right: 32px;
+  }
+  .device-lobby,
+  .device-paper,
+  .device-roadmap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border-radius: 999px;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: rgb(var(--ink));
+    background: rgb(var(--surface));
+    border: 1px solid rgb(var(--line));
+    box-shadow: var(--shadow-soft);
+    transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+  .device-lobby:hover,
+  .device-paper:hover,
+  .device-roadmap:hover {
+    border-color: rgb(var(--line2));
+    transform: translateY(-1px);
+  }
+  .device-lobby svg,
+  .device-paper svg,
+  .device-roadmap svg {
+    color: rgb(var(--mut));
+  }
+
+  /* ── Builder credit (bottom-left of the desk) ─────────────────── */
+  .device-credit {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    position: absolute;
+    left: 32px;
+    bottom: 32px;
+    z-index: 2;
+    padding: 8px 15px 8px 8px;
+    border-radius: 999px;
+    text-decoration: none;
+    background: rgb(var(--surface));
+    border: 1px solid rgb(var(--line));
+    box-shadow: var(--shadow-soft);
+    transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+  .device-credit:hover {
+    border-color: rgb(var(--line2));
+    transform: translateY(-1px);
+  }
+  .device-credit-dp {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: 0 0 auto;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+  }
+  .device-credit-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+  }
+  .dcr-by {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: rgb(var(--ink));
+  }
+  .dcr-sub {
+    font-size: 11.5px;
+    color: rgb(var(--mut));
+  }
+
+  /* ── Scan-to-play QR (bottom-right of the desk) ───────────────── */
+  .device-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+    position: absolute;
+    right: 32px;
+    bottom: 32px;
+    z-index: 2;
+    text-decoration: none;
+  }
+  /* The QR sits on a permanent white card (in both themes) so it always scans. */
+  .device-qr-card {
+    display: block;
+    padding: 12px;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: var(--shadow-card);
+    transition: transform 0.2s ease;
+  }
+  .device-qr:hover .device-qr-card {
+    transform: translateY(-1px);
+  }
+  .device-qr-card svg {
+    display: block;
+    width: 112px;
+    height: 112px;
+  }
+  .device-qr-ph {
+    display: block;
+    width: 112px;
+    height: 112px;
+    border-radius: 6px;
+    background: #f0f0f4;
+  }
+  .device-qr-cap {
+    max-width: 148px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    color: rgb(var(--ink2));
+  }
+}
+
+/* Fit-to-height ladder: the base scale (1.2, above) makes the phone bigger than
+   native on tall windows; each rung steps it down for shorter windows so the rig
+   never clips. The rig is now just the phone frame (~874px tall: 852 screen +
+   2x11 bezel) + 20px desk padding, so a scale s needs ~(874*s + 20)px of height.
+   Each rung's scale is the largest that still fits at the SHORT end of its band.
+   Rungs run high-to-low max-height, so the tightest matching bound wins. */
+@media (min-width: 1024px) and (max-height: 1072px) {
+  .device-shell {
+    --device-scale: 1.15;
+  }
+}
+@media (min-width: 1024px) and (max-height: 1028px) {
+  .device-shell {
+    --device-scale: 1.1;
+  }
+}
+@media (min-width: 1024px) and (max-height: 984px) {
+  .device-shell {
+    --device-scale: 1.05;
+  }
+}
+@media (min-width: 1024px) and (max-height: 941px) {
+  .device-shell {
+    --device-scale: 1;
+  }
+}
+@media (min-width: 1024px) and (max-height: 897px) {
+  .device-shell {
+    --device-scale: 0.95;
+  }
+}
+@media (min-width: 1024px) and (max-height: 853px) {
+  .device-shell {
+    --device-scale: 0.9;
+  }
+}
+@media (min-width: 1024px) and (max-height: 810px) {
+  .device-shell {
+    --device-scale: 0.85;
+  }
+}
+@media (min-width: 1024px) and (max-height: 766px) {
+  .device-shell {
+    --device-scale: 0.8;
+  }
+}
+@media (min-width: 1024px) and (max-height: 722px) {
+  .device-shell {
+    --device-scale: 0.75;
+  }
+}
+@media (min-width: 1024px) and (max-height: 679px) {
+  .device-shell {
+    --device-scale: 0.7;
+  }
+}
+@media (min-width: 1024px) and (max-height: 635px) {
+  .device-shell {
+    --device-scale: 0.65;
+  }
+}
+@media (min-width: 1024px) and (max-height: 591px) {
+  .device-shell {
+    --device-scale: 0.6;
+  }
+}
+@media (min-width: 1024px) and (max-height: 547px) {
+  .device-shell {
+    --device-scale: 0.55;
+  }
+}
+@media (min-width: 1024px) and (max-height: 504px) {
+  .device-shell {
+    --device-scale: 0.5;
+  }
+}
