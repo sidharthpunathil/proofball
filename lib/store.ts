@@ -2,13 +2,13 @@ import { create } from "zustand";
 import type { Frame, MatchEvent, Phase, PickDir, Prediction, LeaderRow } from "./types";
 import type { Sample } from "./candles";
 import { homeWinPct } from "./winprob";
+import { winReward } from "./economy";
 
 const HISTORY_LEN = 48;
 // The candlestick chart aggregates the whole match, so it keeps a longer,
 // minute-stamped tape than the 48-point sparkline. A match tops out at a few
 // hundred odds ticks; 720 is generous headroom that still bounds memory.
 const SAMPLE_LEN = 720;
-const BASE_REWARD = 50;
 
 let _id = 0;
 const nextId = () => `${Date.now()}-${_id++}`;
@@ -206,7 +206,7 @@ export const useStore = create<StoreState>((set, get) => ({
       id: nextId(),
       prompt: `Where does the win-probability go next?`,
       createdAt: now,
-      lockAt: now + 7000,
+      lockAt: now + 30_000, // 30s to make the call
       settleAt: null,
       dir: null,
       lockedProb: null,
@@ -227,7 +227,7 @@ export const useStore = create<StoreState>((set, get) => ({
           ...s.current,
           status: "locked",
           lockedProb: s.winProbHome,
-          settleAt: now + 7000,
+          settleAt: now + 30_000, // 30s hold before we settle the call
         },
       };
     }),
@@ -246,7 +246,7 @@ export const useStore = create<StoreState>((set, get) => ({
     const movedDown = delta < -0.3;
     const won = (c.dir === "up" && movedUp) || (c.dir === "down" && movedDown);
     const streak = won ? s.streak + 1 : 0;
-    const reward = won ? BASE_REWARD + Math.min(streak - 1, 6) * 15 : 0;
+    const reward = won ? winReward(streak) : 0;
     const coins = s.coins + reward;
     const settled: Prediction = {
       ...c,
@@ -265,6 +265,10 @@ export const useStore = create<StoreState>((set, get) => ({
     });
     // Persist the new total to the shared Redis leaderboard.
     postScore(s.user?.name, coins, streak);
+    // A correct call also pays out for real: mint the reward as devnet $PROOF to
+    // the wallet on-chain. This is what makes playing a finished match real play
+    // and not just points. Best-effort — the game never blocks on the chain.
+    if (won && reward > 0) mintWin(s.user?.wallet, reward);
   },
 
   syncLeaderboard: async () => {
@@ -310,6 +314,30 @@ interface SharedRow {
   name: string;
   coins: number;
   streak: number;
+}
+
+// Fire-and-forget on-chain payout of a won call: mints the reward as REAL devnet
+// $PROOF to the wallet (server holds the mint authority). The leaderboard points
+// already counted synchronously; this tops up the real balance and, on success,
+// updates the store's `proof` so the Profile/Earn balance reflects the chain.
+// Fully best-effort: any failure (rate limit, RPC hiccup, no wallet) is swallowed.
+function mintWin(wallet: string | undefined, amount: number): void {
+  if (!wallet || amount <= 0) return;
+  try {
+    void fetch("/api/reward/win", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ wallet, amount }),
+      keepalive: true,
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && typeof d.balance === "number") useStore.setState({ proof: d.balance });
+      })
+      .catch(() => {});
+  } catch {
+    /* ignore */
+  }
 }
 
 // Fire-and-forget upsert of a player's points to the shared Redis leaderboard.
