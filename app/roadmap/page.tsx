@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -9,6 +10,20 @@ import {
   ExternalLink,
 } from "@/components/Icons";
 import ThemeToggle from "@/components/ThemeToggle";
+
+const DESCRIPTION =
+  "Where ProofBall goes next: trustless on-chain escrow, more leagues then more sports, friends pools, and season-long leaderboards.";
+
+export const metadata: Metadata = {
+  title: "Roadmap",
+  description: DESCRIPTION,
+  alternates: { canonical: "/roadmap" },
+  openGraph: {
+    title: "Roadmap · ProofBall",
+    description: DESCRIPTION,
+    url: "/roadmap",
+  },
+};
 
 // Plain-language roadmap, sourced from docs/WHITEPAPER.md (the "Roadmap" section).
 const PHASES: { Icon: typeof Lock; title: string; body: string }[] = [

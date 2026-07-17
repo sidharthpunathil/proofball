@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getFinishedMatchesByRound } from "@/lib/matches";
 import { ChevronLeft, ShieldCheck } from "@/components/Icons";
@@ -6,6 +7,20 @@ import LobbyCard from "@/components/LobbyCards";
 import ResultCard from "@/components/ResultCard";
 
 export const dynamic = "force-dynamic";
+
+const DESCRIPTION =
+  "Every World Cup knockout result, each scoreline verified on-chain. Browse the full bracket, round by round, on ProofBall.";
+
+export const metadata: Metadata = {
+  title: "Previous matches",
+  description: DESCRIPTION,
+  alternates: { canonical: "/results" },
+  openGraph: {
+    title: "Previous matches · ProofBall",
+    description: DESCRIPTION,
+    url: "/results",
+  },
+};
 
 export default async function ResultsPage() {
   const groups = await getFinishedMatchesByRound();

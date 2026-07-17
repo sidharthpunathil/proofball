@@ -4,6 +4,13 @@ import "./globals.css";
 import { Providers } from "./providers";
 import DeviceFrame from "@/components/DeviceFrame";
 import SoundLayer from "@/components/SoundLayer";
+import {
+  SITE_URL,
+  SITE_NAME,
+  SITE_TAGLINE,
+  SITE_DESCRIPTION,
+  SITE_KEYWORDS,
+} from "@/lib/site";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -11,11 +18,50 @@ const inter = Inter({
   display: "swap",
 });
 
+const TITLE = `${SITE_NAME}: ${SITE_TAGLINE}`;
+
 export const metadata: Metadata = {
-  title: "ProofBall: Momentum trading for your favorite sports",
-  description:
-    "Momentum trading for your favorite sports. Call which way the live win-probability swings during the match; every result is settled against on-chain data, so the house can't cheat. Built on TxLINE + Solana.",
-  applicationName: "ProofBall",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: TITLE,
+    template: `%s · ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: SITE_KEYWORDS,
+  authors: [{ name: SITE_NAME }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: "sports",
+  alternates: {
+    canonical: "/",
+  },
+  // The OG/Twitter images come from app/opengraph-image.tsx + twitter-image.tsx
+  // and are merged in automatically; here we set the text + card metadata.
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: TITLE,
+    description: SITE_DESCRIPTION,
+    url: "/",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
 };
 
 export const viewport: Viewport = {
