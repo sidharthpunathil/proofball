@@ -46,3 +46,5 @@ next-env.d.ts
 # installed Claude/agent skills + lockfile (tooling, not app)
 /.claude/
 skills-lock.json
+# stray security-scan tool dir (not part of the app)
+/.deepsec/
