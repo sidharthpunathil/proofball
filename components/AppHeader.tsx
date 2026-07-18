@@ -50,47 +50,34 @@ export default function AppHeader() {
       transition={tweenBase}
       className="sticky top-0 z-30 flex items-center gap-2 px-4 pb-2 pt-3"
     >
-      {/* identity: wallet address chip (placeholder silhouette before sign-in) */}
+      {/* identity: wallet avatar (gradient identicon = the identity; the full
+          address is redundant next to the match pill + score + controls on the
+          393px screen, so we drop it here and keep it a click-to-copy. Silhouette
+          before sign-in). */}
       <div className="relative shrink-0">
         {user ? (
           <button
             onClick={copyAddr}
             title={copied ? "Copied" : `Copy ${user.wallet}`}
-            className="flex items-center gap-2 rounded-full border border-line bg-surface py-1 pl-1 pr-3 shadow-soft transition-colors hover:border-line2 active:scale-[0.97]"
+            className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full shadow-soft ring-1 ring-black/5 transition-transform active:scale-[0.94]"
           >
-            <span className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full ring-1 ring-black/5">
-              <span className="absolute inset-0" style={{ background: gradientFor(user.wallet) }} />
-              <AnimatePresence>
-                {copied && (
-                  <motion.span
-                    initial={reduce ? { opacity: 0 } : { scale: 0.4, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={reduce ? { opacity: 0 } : { scale: 0.4, opacity: 0 }}
-                    transition={springPop}
-                    className="absolute inset-0 flex items-center justify-center bg-grn text-white"
-                  >
-                    <Check size={16} />
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </span>
-            <span className="min-w-[68px] text-left text-[13px] font-semibold tabular-nums text-ink">
-              <AnimatePresence mode="wait" initial={false}>
+            <span className="absolute inset-0" style={{ background: gradientFor(user.wallet) }} />
+            <AnimatePresence>
+              {copied && (
                 <motion.span
-                  key={copied ? "copied" : "addr"}
-                  initial={reduce ? { opacity: 0 } : { y: -5, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={reduce ? { opacity: 0 } : { y: 5, opacity: 0 }}
-                  transition={tweenFast}
-                  className="block"
+                  initial={reduce ? { opacity: 0 } : { scale: 0.4, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={reduce ? { opacity: 0 } : { scale: 0.4, opacity: 0 }}
+                  transition={springPop}
+                  className="absolute inset-0 flex items-center justify-center bg-grn text-white"
                 >
-                  {copied ? "Copied" : user.name}
+                  <Check size={16} />
                 </motion.span>
-              </AnimatePresence>
-            </span>
+              )}
+            </AnimatePresence>
           </button>
         ) : (
-          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-surface text-ink2 shadow-soft">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-surface text-ink2 shadow-soft">
             <User size={19} />
           </div>
         )}
@@ -120,13 +107,14 @@ export default function AppHeader() {
         </AnimatePresence>
       </div>
 
-      {/* center match pill. mx-auto keeps it centred in the space the address
-          chip and toggle leave, and min-w-0 lets it truncate rather than
-          collide. Links back to the lobby to pick another match. */}
+      {/* center match pill. mx-auto centres it in the space the avatar and the
+          right cluster leave. shrink-0 so the team names are never squeezed to
+          nothing (the old min-w-0 + max-w-[40%] collapsed the label, leaving a
+          bare "< • •" on the narrow screen). Links back to the lobby. */}
       <Link
         href="/"
         onClick={() => playSound("navTap")}
-        className="mx-auto flex h-8 min-w-0 max-w-[40%] items-center gap-2 rounded-full border border-line bg-surface px-3 shadow-soft transition-[transform,border-color] hover:border-line2 active:scale-[0.97]"
+        className="mx-auto flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 shadow-soft transition-[transform,border-color] hover:border-line2 active:scale-[0.97]"
       >
         <ChevronLeft size={14} className="shrink-0 text-mut" />
         <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: fixture.home.color }} />
@@ -141,8 +129,8 @@ export default function AppHeader() {
         {/* Live score: your leaderboard balance, always on screen so you watch it
             move on every call (ticks up on a win, down on a wrong call). */}
         {user && <CoinBalance coins={coins} />}
-        <MuteButton className="h-10 w-10" />
-        <ThemeToggle className="h-10 w-10" />
+        <MuteButton className="h-9 w-9" />
+        <ThemeToggle className="h-9 w-9" />
       </div>
     </motion.div>
   );
