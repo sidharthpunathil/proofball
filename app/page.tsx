@@ -69,7 +69,7 @@ export default async function Home() {
         </p>
 
         {/* On desktop the desk chrome carries these; on mobile the phone IS the
-            app, so surface the same two destinations as chips under the hero. */}
+            app, so surface the same destinations as chips under the hero. */}
         <nav className="mt-5 flex flex-wrap gap-2 lg:hidden" aria-label="About ProofBall">
           <Link
             href="/how-it-works"
@@ -93,6 +93,21 @@ export default async function Home() {
             </svg>
             Roadmap
           </Link>
+          <a
+            href="/whitepaper"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 py-2 text-[13px] font-semibold text-ink shadow-soft transition-colors active:border-line2"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-mut" aria-hidden>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <path d="M14 2v6h6" />
+              <path d="M16 13H8" />
+              <path d="M16 17H8" />
+              <path d="M10 9H8" />
+            </svg>
+            Whitepaper
+          </a>
         </nav>
 
         {/* The demo video: a click-to-play facade, so Vimeo's player only loads
