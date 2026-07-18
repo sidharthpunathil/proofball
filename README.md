@@ -214,6 +214,8 @@ they never collide with a local Postgres (5432) or Redis (6379).
 ---
 
 <p align="center">
-  <sub>Built on the <strong>TxLINE</strong> devnet feed and <strong>Solana</strong> devnet ·
+  <sub>Built for the <a href="https://superteam.fun/earn/listing/consumer-and-fan-experiences"><strong>World Cup Hackathon</strong></a>
+  by Superteam Earn, powered by TxODDS ·
+  runs on the <strong>TxLINE</strong> devnet feed and <strong>Solana</strong> devnet ·
   <a href="https://proofball.xyz"><strong>proofball.xyz</strong></a></sub>
 </p>
