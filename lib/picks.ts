@@ -21,11 +21,14 @@ CREATE TABLE IF NOT EXISTS picks (
   reward      INT    NOT NULL DEFAULT 0,-- +winnings on a win, -stake on a loss
   fixture_id  TEXT,
   verify_url  TEXT,
+  at_minute   INT,                      -- match minute the call was committed
   created_at  BIGINT NOT NULL,
   settled_at  BIGINT NOT NULL,
   PRIMARY KEY (wallet, pick_id)
 );
 CREATE INDEX IF NOT EXISTS picks_wallet_settled ON picks (wallet, settled_at DESC);
+-- Backfill the column on tables created before at_minute existed.
+ALTER TABLE picks ADD COLUMN IF NOT EXISTS at_minute INT;
 `;
 
 // Ensure the table exists once per process (cached promise; reset on failure so
@@ -49,6 +52,7 @@ export interface PickInput {
   id: string;
   dir: "up" | "down";
   status: "won" | "lost";
+  atMinute?: number | null;
   delta?: number | null;
   reward?: number | null;
   fixtureId?: string | null;
@@ -63,8 +67,8 @@ export async function savePick(wallet: string, p: PickInput): Promise<void> {
     await ensurePicksSchema();
     await getPool().query(
       `INSERT INTO picks
-         (wallet, pick_id, dir, status, delta, reward, fixture_id, verify_url, created_at, settled_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         (wallet, pick_id, dir, status, delta, reward, fixture_id, verify_url, at_minute, created_at, settled_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (wallet, pick_id) DO NOTHING`,
       [
         wallet,
@@ -75,6 +79,7 @@ export async function savePick(wallet: string, p: PickInput): Promise<void> {
         Math.round(p.reward ?? 0),
         p.fixtureId ?? null,
         p.verifyUrl ?? null,
+        p.atMinute ?? null,
         p.createdAt ?? Date.now(),
         p.settledAt ?? Date.now(),
       ]
@@ -100,7 +105,7 @@ export async function loadPicks(wallet: string, limit = 30): Promise<PicksLoad> 
     const pool = getPool();
     const [recent, agg] = await Promise.all([
       pool.query(
-        `SELECT pick_id, dir, status, delta, reward, verify_url, created_at, settled_at
+        `SELECT pick_id, dir, status, delta, reward, verify_url, at_minute, created_at, settled_at
            FROM picks WHERE wallet = $1 ORDER BY settled_at DESC LIMIT $2`,
         [wallet, limit]
       ),
@@ -121,6 +126,7 @@ export async function loadPicks(wallet: string, limit = 30): Promise<PicksLoad> 
       dir: r.dir === "up" || r.dir === "down" ? r.dir : null,
       lockedProb: null,
       status: r.status === "won" ? "won" : "lost",
+      atMinute: r.at_minute != null ? Number(r.at_minute) : undefined,
       delta: r.delta != null ? Number(r.delta) : undefined,
       reward: Number(r.reward),
       verifyUrl: r.verify_url ?? undefined,

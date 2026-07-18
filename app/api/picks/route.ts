@@ -67,6 +67,7 @@ export async function POST(req: Request) {
     id: String(raw.id),
     dir,
     status,
+    atMinute: Number.isFinite(Number(raw.atMinute)) ? Math.round(Number(raw.atMinute)) : null,
     delta: Number.isFinite(Number(raw.delta)) ? Number(raw.delta) : null,
     reward,
     fixtureId: typeof raw.fixtureId === "string" ? raw.fixtureId : null,

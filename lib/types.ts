@@ -56,6 +56,7 @@ export interface Prediction {
   dir: PickDir | null;
   lockedProb: number | null;
   status: PickStatus;
+  atMinute?: number; // match minute the call was locked in (the call's "time")
   delta?: number; // prob change at settle
   reward?: number; // coins won
   memoSig?: string;

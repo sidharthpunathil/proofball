@@ -355,6 +355,7 @@ export const useStore = create<StoreState>()(
           ...s.current,
           status: "locked",
           lockedProb: s.winProbHome,
+          atMinute: s.minute, // stamp the match time the call was committed
           settleAt: now + 30_000, // 30s hold before we settle the call
         },
       };
@@ -614,6 +615,7 @@ function savePickToDb(wallet: string | undefined, pick: Prediction): void {
           id: pick.id,
           dir: pick.dir,
           status: pick.status,
+          atMinute: pick.atMinute,
           delta: pick.delta,
           reward: pick.reward,
           verifyUrl: pick.verifyUrl,

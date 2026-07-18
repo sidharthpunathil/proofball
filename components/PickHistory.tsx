@@ -11,6 +11,7 @@ import { Check, Close, ExternalLink, Target } from "./Icons";
 export default function PickHistory({ limit = 20, showEmpty = false }: { limit?: number; showEmpty?: boolean }) {
   const history = useStore((s) => s.history);
   const current = useStore((s) => s.current);
+  const minute = useStore((s) => s.minute);
   // The in-progress call (Rising/Falling picked, not yet settled) surfaces here
   // right away, so a call is visible the moment it is made (including on the
   // replay simulation), not only after it settles ~7s later.
@@ -105,6 +106,7 @@ export default function PickHistory({ limit = 20, showEmpty = false }: { limit?:
               <span className="h-1.5 w-1.5 rounded-full bg-grn animate-pulse2" />
             </span>
             <span className="font-semibold text-ink">{pending.dir === "up" ? "Rising" : "Falling"}</span>
+            <MinuteChip minute={pending.atMinute ?? minute} />
             <span className="ml-auto text-[11.5px] font-medium text-mut">
               {pending.status === "locked" ? "Locked · settling" : "Called · locks soon"}
             </span>
@@ -130,6 +132,7 @@ export default function PickHistory({ limit = 20, showEmpty = false }: { limit?:
                 {won ? <Check size={14} /> : <Close size={14} />}
               </span>
               <span className="font-semibold text-ink">{p.dir === "up" ? "Rising" : "Falling"}</span>
+              <MinuteChip minute={p.atMinute} />
               <span className="tabular-nums text-mut">
                 {p.delta != null && (p.delta > 0 ? "+" : "")}
                 {p.delta?.toFixed(1)}%
@@ -171,5 +174,16 @@ export default function PickHistory({ limit = 20, showEmpty = false }: { limit?:
         })}
       </m.div>
     </div>
+  );
+}
+
+// The match minute a call was made, in football's `12'` shorthand , the call's
+// "time". Renders nothing for legacy calls saved before we stamped the minute.
+function MinuteChip({ minute }: { minute?: number | null }) {
+  if (minute == null) return null;
+  return (
+    <span className="shrink-0 rounded-md bg-subtle px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-ink2">
+      {minute}&apos;
+    </span>
   );
 }
