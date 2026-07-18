@@ -7,6 +7,7 @@ import LobbyCard from "@/components/LobbyCards";
 import LobbyHero from "@/components/LobbyHero";
 import Flag from "@/components/Flag";
 import FloatingWinnings from "@/components/fx/FloatingWinnings";
+import DemoVideo from "@/components/DemoVideo";
 
 export const dynamic = "force-dynamic";
 
@@ -49,20 +50,20 @@ export default async function Home() {
           <ThemeToggle className="lg:hidden" />
         </div>
 
-        <h1 className="mt-6 flex items-center gap-3 text-[44px] font-extrabold leading-[1.04] tracking-[-0.03em] text-ink lg:mt-8 lg:gap-4 lg:text-[74px]">
+        <h1 className="mt-6 flex items-center gap-3 text-[44px] font-extrabold leading-[1.04] tracking-[-0.03em] text-ink lg:mt-6 lg:gap-3.5 lg:text-[58px]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/proofball-logo.png"
             alt=""
             aria-hidden
-            className="h-11 w-11 shrink-0 rounded-[14px] shadow-soft lg:h-[68px] lg:w-[68px] lg:rounded-[20px]"
+            className="h-11 w-11 shrink-0 rounded-[14px] shadow-soft lg:h-[52px] lg:w-[52px] lg:rounded-[16px]"
           />
           ProofBall
         </h1>
-        <p className="mt-3 text-[19px] font-semibold leading-[1.3] tracking-[-0.01em] text-ink lg:mt-5 lg:text-[28px]">
+        <p className="mt-3 text-[19px] font-semibold leading-[1.3] tracking-[-0.01em] text-ink lg:mt-4 lg:text-[23px]">
           Momentum trading for your favorite sports.
         </p>
-        <p className="mt-2 text-[18px] leading-[1.5] text-ink2 lg:mt-3 lg:max-w-md lg:text-[21px]">
+        <p className="mt-2 text-[18px] leading-[1.5] text-ink2 lg:mt-3 lg:max-w-md lg:text-[17.5px]">
           Watch the World Cup and call which way the odds move. Every result is proven on the{" "}
           <span className="text-ink">blockchain</span>, so no one can cheat.
         </p>
@@ -93,6 +94,10 @@ export default async function Home() {
             Roadmap
           </Link>
         </nav>
+
+        {/* The demo video: a click-to-play facade, so Vimeo's player only loads
+            for visitors who actually press play. */}
+        <DemoVideo />
       </LobbyHero>
       </div>
 
@@ -160,7 +165,10 @@ function FinalCard({ fixture }: { fixture: Fixture }) {
   return (
     <Link
       href={`/match/${fixture.id}`}
-      className="group relative block overflow-hidden rounded-[22px] border border-line bg-surface p-5 shadow-card transition-colors hover:border-line2"
+      // `isolate` scopes the ticker layer's negative z-index to THIS card: the
+      // tickers paint above the card's own background but under every content
+      // row (backgrounds and text), whatever structure the rows have.
+      className="group relative isolate block overflow-hidden rounded-[22px] border border-line bg-surface p-5 shadow-card transition-colors hover:border-line2"
     >
       {/* ambient "money in the air": +$PROOF tickers rise over the card */}
       <FloatingWinnings />

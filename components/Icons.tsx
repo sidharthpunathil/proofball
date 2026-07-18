@@ -22,6 +22,7 @@ import {
   LayoutGrid as LrLayoutGrid,
   Link2 as LrLink2,
   Lock as LrLock,
+  Maximize2 as LrMaximize2,
   Moon as LrMoon,
   MoreHorizontal as LrMoreHorizontal,
   Play as LrPlay,
@@ -112,6 +113,7 @@ export const Trophy = icon(LrTrophy, "Trophy");
 export const Broadcast = icon(LrRadio, "Broadcast");
 export const Play = icon(LrPlay, "Play");
 export const Lock = icon(LrLock, "Lock");
+export const Expand = icon(LrMaximize2, "Expand");
 export const Link = icon(LrLink2, "Link");
 export const Sun = icon(LrSun, "Sun");
 export const Moon = icon(LrMoon, "Moon");

@@ -222,7 +222,7 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
                   {isFinished && <MatchOver />}
                   <PredictControl />
                   <EventFeed />
-                  <PickHistory limit={3} />
+                  <PickHistory limit={3} onSeeAll={() => setTab("activity")} />
                 </div>
               )}
 

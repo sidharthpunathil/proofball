@@ -9,9 +9,12 @@ import { EASE_OUT } from "@/lib/motion";
  * side, red for the down — the tease that there are winnings to be called here.
  *
  * Purely decorative: renders nothing under reduced motion and never intercepts
- * pointer events. Sits over the card (z-10) in the side margins, clear of the
- * centred team names, so the effect reads without smothering the content. The
- * parent must be `relative overflow-hidden` (to clip the tickers to the card).
+ * pointer events. Paints at NEGATIVE z inside the card's own stacking context:
+ * above the card's background, under every content row (their backgrounds and
+ * text alike), so a ticker can never interleave with functional text no matter
+ * how the card's rows are structured. The parent must therefore be
+ * `relative isolate overflow-hidden` (isolate scopes -z-10 to the card; without
+ * it the tickers would drop behind the card's background and disappear).
  */
 
 type Tone = "grn" | "red";
@@ -44,7 +47,7 @@ export default function FloatingWinnings({ className = "" }: { className?: strin
   if (reduce) return null;
 
   return (
-    <div className={`pointer-events-none absolute inset-0 z-10 overflow-hidden ${className}`} aria-hidden>
+    <div className={`pointer-events-none absolute inset-0 -z-10 overflow-hidden ${className}`} aria-hidden>
       {TICKERS.map((t, i) => (
         <m.span
           key={i}
@@ -54,7 +57,9 @@ export default function FloatingWinnings({ className = "" }: { className?: strin
           style={{ left: `${t.x}%`, bottom: `${t.base}%` }}
           initial={{ opacity: 0, y: 6, scale: 0.8 }}
           animate={{
-            opacity: [0, 0.85, 0.85, 0],
+            // Ambient means ambient: peak well below full so the tickers read
+            // as background texture, never competing with the card's own text.
+            opacity: [0, 0.55, 0.55, 0],
             y: [6, -t.rise * 0.4, -t.rise * 0.75, -t.rise],
             x: [0, t.drift * 0.5, t.drift, t.drift * 0.7],
             scale: [0.8, 1, 1, 0.92],

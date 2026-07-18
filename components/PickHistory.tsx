@@ -8,7 +8,17 @@ import CoinBurst from "@/components/fx/CoinBurst";
 import ShareButton from "./ShareButton";
 import { Check, Close, ExternalLink, Target } from "./Icons";
 
-export default function PickHistory({ limit = 20, showEmpty = false }: { limit?: number; showEmpty?: boolean }) {
+export default function PickHistory({
+  limit = 20,
+  showEmpty = false,
+  onSeeAll,
+}: {
+  limit?: number;
+  showEmpty?: boolean;
+  /** When the list is capped and older calls exist, "All your calls" jumps to
+   *  the full list (the Activity tab) instead of letting rows silently vanish. */
+  onSeeAll?: () => void;
+}) {
   const history = useStore((s) => s.history);
   const current = useStore((s) => s.current);
   const minute = useStore((s) => s.minute);
@@ -172,6 +182,17 @@ export default function PickHistory({ limit = 20, showEmpty = false }: { limit?:
             </m.div>
           );
         })}
+        {/* Capped list with more beyond the fold: hand the reader to the full
+            list, so a call scrolling out of the top-N never reads as lost. */}
+        {onSeeAll && history.length > limit && (
+          <button
+            type="button"
+            onClick={onSeeAll}
+            className="mt-0.5 flex items-center justify-center gap-1 rounded-xl border border-line bg-subtle py-2 text-[12px] font-semibold text-ink2 transition-transform active:scale-[0.98] hover:text-ink"
+          >
+            All your calls ({history.length})
+          </button>
+        )}
       </m.div>
     </div>
   );
