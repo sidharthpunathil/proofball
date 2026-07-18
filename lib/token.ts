@@ -68,3 +68,14 @@ export async function proofBalance(wallet: string): Promise<number> {
 export function loadMintAuthority(): Keypair | null {
   return loadServerKeypair();
 }
+
+/**
+ * The game treasury owner — the account that RECEIVES top-up deposits. It is the
+ * fee-payer wallet (the mint authority), so deposits pile into its associated
+ * token account. Cash-outs mint fresh $PROOF rather than drawing from here, so on
+ * devnet the treasury simply accumulates deposits. Null if the key is unset.
+ */
+export function treasuryOwner(): PublicKey | null {
+  const kp = loadServerKeypair();
+  return kp ? kp.publicKey : null;
+}

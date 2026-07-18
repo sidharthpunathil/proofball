@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import { springSnappy } from "@/lib/motion";
 import { playSound } from "@/lib/sound";
 import { Grid, Trophy, Gift, Activity, User } from "./Icons";
@@ -24,6 +24,7 @@ export default function BottomNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) 
           const active = tab === id;
           return (
             <button
+              type="button"
               key={id}
               onClick={() => {
                 if (!active) playSound("navTap");
@@ -35,7 +36,7 @@ export default function BottomNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) 
             >
               <span className="relative flex h-9 w-9 items-center justify-center rounded-full">
                 {active && (
-                  <motion.span
+                  <m.span
                     layoutId="navActive"
                     className="absolute inset-0 rounded-full bg-ink"
                     transition={reduce ? { duration: 0 } : springSnappy}

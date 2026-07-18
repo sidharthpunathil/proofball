@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { useFixture } from "@/lib/fixture-context";
 import { DUR, EASE_BACK, tweenBase, tweenFast } from "@/lib/motion";
 import { Clock, Play } from "./Icons";
+import Flag from "./Flag";
 
 const PHASE_LABEL: Record<string, string> = {
   PRE: "Pre-match",
@@ -102,7 +103,7 @@ export default function MatchHeader() {
       </div>
       <div className="mt-2 flex items-center justify-center gap-2 text-[12px] font-medium text-mut">
         {live && (
-          <motion.span
+          <m.span
             className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-red animate-pulse2" : "bg-mut"}`}
             animate={{ opacity: connected ? 1 : 0.55 }}
             transition={reduce ? { duration: 0 } : tweenBase}
@@ -145,7 +146,7 @@ export default function MatchHeader() {
 function PhaseTag({ phase, reduce, children }: { phase: string; reduce: boolean; children: ReactNode }) {
   return (
     <AnimatePresence mode="wait" initial={false}>
-      <motion.span
+      <m.span
         key={phase}
         initial={reduce ? { opacity: 0 } : { opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
@@ -154,7 +155,7 @@ function PhaseTag({ phase, reduce, children }: { phase: string; reduce: boolean;
         className="inline-block"
       >
         {children}
-      </motion.span>
+      </m.span>
     </AnimatePresence>
   );
 }
@@ -162,7 +163,7 @@ function PhaseTag({ phase, reduce, children }: { phase: string; reduce: boolean;
 function Score({ value, reduce }: { value: number; reduce: boolean }) {
   return (
     <span className="relative inline-block text-[38px] font-bold leading-none">
-      <motion.span
+      <m.span
         key={value}
         initial={reduce ? false : { scale: 1.6, opacity: 0, y: -4 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -170,7 +171,7 @@ function Score({ value, reduce }: { value: number; reduce: boolean }) {
         className="inline-block"
       >
         {value}
-      </motion.span>
+      </m.span>
     </span>
   );
 }
@@ -178,7 +179,7 @@ function Score({ value, reduce }: { value: number; reduce: boolean }) {
 function Team({ name, color, align }: { name: string; color: string; align: "left" | "right" }) {
   return (
     <div className={`flex items-center gap-2 ${align === "left" ? "flex-row" : "flex-row-reverse"}`}>
-      <span className="h-3 w-3 rounded-full" style={{ background: color }} />
+      <Flag abbr={name} color={color} size={14} />
       <span className="text-[17px] font-bold tracking-tight text-ink">{name}</span>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 
 export interface SegOption<T extends string | number> {
   value: T;
@@ -46,6 +46,7 @@ export default function Segmented<T extends string | number>({
         const active = opt.value === value;
         return (
           <button
+            type="button"
             key={String(opt.value)}
             role="tab"
             aria-selected={active}
@@ -57,7 +58,7 @@ export default function Segmented<T extends string | number>({
             }`}
           >
             {active && (
-              <motion.span
+              <m.span
                 layoutId={layoutId}
                 className={`absolute inset-0 rounded-full ${
                   solid ? "bg-ink" : "bg-surface shadow-soft ring-1 ring-line"

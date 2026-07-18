@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import type { WalletError } from "@solana/wallet-adapter-base";
 import { clusterApiUrl, type Cluster } from "@solana/web3.js";
+import { LazyMotion, domMax } from "framer-motion";
 import { useStore } from "@/lib/store";
 
 /**
@@ -61,10 +62,18 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={[]} autoConnect onError={onError}>
-        {children}
-      </WalletProvider>
-    </ConnectionProvider>
+    // LazyMotion loads Framer Motion's feature set once for the whole tree so
+    // each component can import the lightweight `m` instead of the full `motion`
+    // component (which bundles the entire animation graph, ~34kb gz, at every
+    // call site). `domMax` is required because several views use shared-layout
+    // animations (layout / layoutId) and drag-adjacent features; `strict` makes
+    // any stray `motion.*` throw so the conversion can't silently regress.
+    <LazyMotion features={domMax} strict>
+      <ConnectionProvider endpoint={endpoint}>
+        <WalletProvider wallets={[]} autoConnect onError={onError}>
+          {children}
+        </WalletProvider>
+      </ConnectionProvider>
+    </LazyMotion>
   );
 }

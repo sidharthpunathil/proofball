@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
 import { tweenBase } from "@/lib/motion";
 
@@ -10,12 +10,12 @@ import { tweenBase } from "@/lib/motion";
 export default function LobbyHero({ children }: { children: ReactNode }) {
   const reduce = useReducedMotion();
   return (
-    <motion.div
+    <m.div
       initial={reduce ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={tweenBase}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }

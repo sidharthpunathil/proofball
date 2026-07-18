@@ -5,6 +5,7 @@ import { ArrowRight, Trophy, ShieldCheck, Clock, ChevronRight } from "@/componen
 import ThemeToggle from "@/components/ThemeToggle";
 import LobbyCard from "@/components/LobbyCards";
 import LobbyHero from "@/components/LobbyHero";
+import Flag from "@/components/Flag";
 
 export const dynamic = "force-dynamic";
 
@@ -151,13 +152,13 @@ function FinalCard({ fixture }: { fixture: Fixture }) {
 
       <div className="mt-4 flex items-center justify-center gap-5 text-[22px] font-bold text-ink">
         <span className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-full" style={{ background: fixture.home.color }} />
+          <Flag abbr={fixture.home.abbr} color={fixture.home.color} size={14} />
           {fixture.home.abbr}
         </span>
         <span className="text-[15px] font-medium text-faint">vs</span>
         <span className="flex items-center gap-2">
           {fixture.away.abbr}
-          <span className="h-3 w-3 rounded-full" style={{ background: fixture.away.color }} />
+          <Flag abbr={fixture.away.abbr} color={fixture.away.color} size={14} />
         </span>
       </div>
 
@@ -197,7 +198,7 @@ function ResultCard({ fixture }: { fixture: Fixture }) {
       </span>
       <div className="flex flex-1 items-center justify-center gap-3 text-[15px] font-bold">
         <span className={`flex items-center gap-1.5 ${homeWon ? "text-ink" : "text-mut"}`}>
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: fixture.home.color }} />
+          <Flag abbr={fixture.home.abbr} color={fixture.home.color} />
           {fixture.home.abbr}
         </span>
         <span className="tabular-nums text-ink">
@@ -205,7 +206,7 @@ function ResultCard({ fixture }: { fixture: Fixture }) {
         </span>
         <span className={`flex items-center gap-1.5 ${awayWon ? "text-ink" : "text-mut"}`}>
           {fixture.away.abbr}
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: fixture.away.color }} />
+          <Flag abbr={fixture.away.abbr} color={fixture.away.color} />
         </span>
       </div>
       <ChevronRight size={16} className="shrink-0 text-faint transition group-hover:text-mut motion-safe:md:group-hover:translate-x-0.5" />

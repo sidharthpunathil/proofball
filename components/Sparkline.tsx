@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { motion, useReducedMotion, useSpring } from "framer-motion";
+import { m, useReducedMotion, useSpring } from "framer-motion";
 import { EASE_OUT, DUR, springSoft } from "@/lib/motion";
 
 interface Props {
@@ -41,7 +41,7 @@ export default function Sparkline({ data }: Props) {
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full text-grn" preserveAspectRatio="none">
       <polygon points={`0,${h} ${pts.join(" ")} ${w},${h}`} fill="currentColor" fillOpacity={0.1} />
-      <motion.polyline
+      <m.polyline
         points={pts.join(" ")}
         fill="none"
         stroke="currentColor"
@@ -53,7 +53,7 @@ export default function Sparkline({ data }: Props) {
         animate={{ pathLength: 1 }}
         transition={{ duration: DUR.slow, ease: EASE_OUT }}
       />
-      <motion.circle cx={w} cy={cy} r={3} fill="currentColor" />
+      <m.circle cx={w} cy={cy} r={3} fill="currentColor" />
     </svg>
   );
 }

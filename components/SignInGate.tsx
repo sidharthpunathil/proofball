@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
+import { m, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletReadyState, type WalletName } from "@solana/wallet-adapter-base";
 import { useStore } from "@/lib/store";
 import { playSound } from "@/lib/sound";
 import { DUR, EASE_OUT, springPop, listContainer, listItem } from "@/lib/motion";
-import { ShieldCheck } from "./Icons";
+import { detectMobileEnv, mobileWalletLinks, type MobileEnv } from "@/lib/wallet-mobile";
+import { ShieldCheck, ExternalLink } from "./Icons";
 
 function shortAddr(a: string) {
   return a.length > 8 ? `${a.slice(0, 4)}…${a.slice(-4)}` : a;
@@ -41,7 +42,19 @@ export default function SignInGate() {
   // Without this the client detects Phantom immediately → branch mismatch → the
   // hydration error.
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // Mobile env (userAgent + injected provider) also only resolves client-side,
+  // so it's captured in the same post-mount step and starts as the desktop
+  // default — keeping the first client render identical to the server's.
+  const [env, setEnv] = useState<MobileEnv>({
+    isMobile: false,
+    isIOS: false,
+    isAndroid: false,
+    inWalletBrowser: false,
+  });
+  useEffect(() => {
+    setMounted(true);
+    setEnv(detectMobileEnv());
+  }, []);
 
   // We only ever auto-connect right after the user taps a wallet in the gate.
   // Being "selected but not connected" is also the state that Sign out and an
@@ -94,19 +107,36 @@ export default function SignInGate() {
     [wallet, connected, connecting, connect, select],
   );
 
-  const detected = mounted ? wallets.filter((w) => w.readyState === WalletReadyState.Installed) : [];
+  // Connectable = browser-injected wallets (readyState Installed — the extension
+  // or a wallet's in-app browser) PLUS Loadable adapters. On Android the latter
+  // is wallet-adapter's auto-added Mobile Wallet Adapter; the old `=== Installed`
+  // filter discarded it, which is why Android saw "no wallet found" despite MWA
+  // being right there. Tapping it launches the wallet over the native MWA intent.
+  const connectable = mounted
+    ? wallets.filter(
+        (w) => w.readyState === WalletReadyState.Installed || w.readyState === WalletReadyState.Loadable,
+      )
+    : [];
+
+  // Deep-link into a wallet's in-app browser on mobile — the only path on iOS,
+  // and a fallback on Android if MWA can't hand off to a wallet. Never on
+  // desktop, and never when a provider is already injected (i.e. we're inside a
+  // wallet browser), where it would just loop.
+  const showDeeplinks = mounted && env.isMobile && !env.inWalletBrowser;
+  // Safe to read window.location here: showDeeplinks implies mounted (client).
+  const links = showDeeplinks ? mobileWalletLinks() : [];
 
   return (
     <AnimatePresence>
       {!storeUser && (
-        <motion.div
+        <m.div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/25 backdrop-blur-sm"
           initial={reduce ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
         >
-          <motion.div
+          <m.div
             className="relative w-full max-w-md rounded-t-[30px] border border-line bg-surface p-6 pb-9 shadow-card"
             initial={reduce ? false : { y: "100%" }}
             animate={{ y: 0 }}
@@ -116,7 +146,7 @@ export default function SignInGate() {
             <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-line2" />
             <div className="flex justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <motion.img
+              <m.img
                 src="/proofball-logo.png"
                 alt="ProofBall"
                 className="h-14 w-14 rounded-2xl"
@@ -135,18 +165,21 @@ export default function SignInGate() {
               so the house can&apos;t cheat.
             </p>
 
-            {detected.length > 0 ? (
-              <motion.div
+            {connectable.length > 0 ? (
+              <m.div
                 className="mt-5 flex flex-col gap-2"
                 variants={reduce ? undefined : walletCascade}
                 initial={reduce ? false : "hidden"}
                 animate={reduce ? false : "show"}
               >
-                {detected.map((w) => {
+                {connectable.map((w) => {
                   const isThis = wallet?.adapter.name === w.adapter.name;
-                  const label = connecting && isThis ? "Connecting…" : "Detected";
+                  // Injected (Installed) wallets are "Detected"; a Loadable one
+                  // (the Android Mobile Wallet Adapter) is a "Connect" hand-off.
+                  const idle = w.readyState === WalletReadyState.Installed ? "Detected" : "Connect";
+                  const label = connecting && isThis ? "Connecting…" : idle;
                   return (
-                    <motion.button
+                    <m.button
                       key={w.adapter.name}
                       variants={reduce ? undefined : listItem}
                       whileTap={reduce ? undefined : { scale: 0.98 }}
@@ -159,7 +192,7 @@ export default function SignInGate() {
                       {w.adapter.name}
                       <span className="ml-auto text-[12px] font-medium text-mut">
                         <AnimatePresence mode="wait" initial={false}>
-                          <motion.span
+                          <m.span
                             key={label}
                             initial={reduce ? false : { opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -167,28 +200,80 @@ export default function SignInGate() {
                             transition={{ duration: reduce ? 0 : DUR.micro }}
                           >
                             {label}
-                          </motion.span>
+                          </m.span>
                         </AnimatePresence>
                       </span>
-                    </motion.button>
+                    </m.button>
                   );
                 })}
-              </motion.div>
-            ) : (
-              <motion.div
+                {/* Android MWA sometimes can't hand off (Brave, no MWA wallet).
+                    A quiet escape hatch: open ProofBall inside the wallet itself. */}
+                {showDeeplinks && (
+                  <m.p variants={reduce ? undefined : listItem} className="mt-1 text-center text-[12px] text-mut">
+                    Not connecting?{" "}
+                    {links.map((l, i) => (
+                      <span key={l.name}>
+                        {i > 0 && " or "}
+                        <a href={l.href} className="font-medium text-grn underline underline-offset-2">
+                          open in {l.name}
+                        </a>
+                      </span>
+                    ))}
+                  </m.p>
+                )}
+              </m.div>
+            ) : showDeeplinks ? (
+              <m.div
                 className="mt-5 flex flex-col gap-2"
                 variants={reduce ? undefined : walletCascade}
                 initial={reduce ? false : "hidden"}
                 animate={reduce ? false : "show"}
               >
-                <motion.p
+                <m.p variants={reduce ? undefined : listItem} className="mb-1 text-center text-[13px] text-mut">
+                  Open ProofBall in your wallet to connect:
+                </m.p>
+                {links.map((l) => (
+                  <m.a
+                    key={l.name}
+                    variants={reduce ? undefined : listItem}
+                    whileTap={reduce ? undefined : { scale: 0.98 }}
+                    href={l.href}
+                    onClick={() => playSound("press")}
+                    className="flex items-center justify-between rounded-2xl border border-line bg-subtle px-4 py-3.5 text-[15px] font-semibold text-ink transition-transform active:scale-[0.98]"
+                  >
+                    {l.name}
+                    <span className="flex items-center gap-1 text-[12px] font-medium text-grn">
+                      Open <ExternalLink size={13} />
+                    </span>
+                  </m.a>
+                ))}
+                <m.p variants={reduce ? undefined : listItem} className="mt-1 text-center text-[12px] text-mut">
+                  No wallet yet?{" "}
+                  {links.map((l, i) => (
+                    <span key={l.name}>
+                      {i > 0 && " · "}
+                      <a href={l.install} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                        Install {l.name}
+                      </a>
+                    </span>
+                  ))}
+                </m.p>
+              </m.div>
+            ) : (
+              <m.div
+                className="mt-5 flex flex-col gap-2"
+                variants={reduce ? undefined : walletCascade}
+                initial={reduce ? false : "hidden"}
+                animate={reduce ? false : "show"}
+              >
+                <m.p
                   variants={reduce ? undefined : listItem}
                   className="mb-1 text-center text-[13px] text-mut"
                 >
                   No Solana wallet found. Install one to continue:
-                </motion.p>
+                </m.p>
                 {KNOWN.map((k) => (
-                  <motion.a
+                  <m.a
                     key={k.name}
                     variants={reduce ? undefined : listItem}
                     whileTap={reduce ? undefined : { scale: 0.98 }}
@@ -199,16 +284,16 @@ export default function SignInGate() {
                   >
                     {k.name}
                     <span className="text-[12px] font-medium text-grn">Install</span>
-                  </motion.a>
+                  </m.a>
                 ))}
-              </motion.div>
+              </m.div>
             )}
 
             <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11.5px] text-mut">
               <ShieldCheck size={13} className="text-grn" /> Your key is your identity. Nothing custodial.
             </p>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

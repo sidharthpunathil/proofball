@@ -50,3 +50,5 @@ next-env.d.ts
 skills-lock.json
 # stray security-scan tool dir (not part of the app)
 /.deepsec/
+
+idea.txt

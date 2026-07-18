@@ -285,30 +285,62 @@ async function fetchFixtureDirectory(): Promise<
 
 // ── real replay builder (for the match screen) ───────────────────────────
 
+function titleCase(s: string): string {
+  const t = s.replace(/_/g, " ").trim();
+  return t ? t[0].toUpperCase() + t.slice(1) : t;
+}
+
 function labelFor(action: string, teamName: string): string {
+  const withTeam = (base: string) => (teamName ? `${base} · ${teamName}` : base);
   switch (action) {
     case "goal":
-      return `Goal · ${teamName}`;
+      return withTeam("Goal");
+    case "own_goal":
+      return withTeam("Own goal");
     case "red_card":
-      return `Red card · ${teamName}`;
+      return withTeam("Red card");
     case "yellow_card":
-      return `Yellow · ${teamName}`;
+      return withTeam("Yellow");
+    case "second_yellow":
+      return withTeam("2nd yellow");
     case "corner":
-      return `Corner · ${teamName}`;
+      return withTeam("Corner");
     case "shot":
     case "shot_on_target":
-      return `Shot · ${teamName}`;
+      return withTeam("Shot");
+    case "shot_off_target":
+    case "shot_off":
+      return withTeam("Shot off");
     case "penalty":
-      return `Penalty · ${teamName}`;
+      return withTeam("Penalty");
+    case "penalty_missed":
+      return withTeam("Pen missed");
+    case "substitution":
+    case "substitution_in":
+      return withTeam("Sub");
+    case "offside":
+      return withTeam("Offside");
+    case "foul":
+      return withTeam("Foul");
+    case "free_kick":
+      return withTeam("Free kick");
+    case "throw_in":
+      return withTeam("Throw-in");
+    case "save":
+      return withTeam("Save");
+    case "injury":
+      return withTeam("Injury");
+    case "var":
+      return withTeam("VAR");
     case "kickoff":
-    case "coverage_update":
       return "Kick-off";
     case "half_time":
       return "Half-time";
+    case "full_time":
     case "game_finalised":
       return "Full-time";
     default:
-      return teamName ? `${action.replace(/_/g, " ")} · ${teamName}` : action.replace(/_/g, " ");
+      return withTeam(titleCase(action));
   }
 }
 
@@ -344,18 +376,11 @@ export async function buildRealReplay(fx: Fixture): Promise<Frame[] | null> {
   if (odds) frames.push(oddsFrame(odds, 300));
   else if (isFinished) frames.push(oddsFrame(anchor, 300));
 
-  // 2) Walk the ordered event log → clock + notable events with real minutes.
-  const NOTABLE = new Set([
-    "goal",
-    "red_card",
-    "yellow_card",
-    "corner",
-    "shot",
-    "shot_on_target",
-    "penalty",
-    "half_time",
-    "game_finalised",
-  ]);
+  // 2) Walk the ordered event log → clock + AS MANY real events as the log holds.
+  // Emit an event for every action EXCEPT pure noise (heartbeats / commentary),
+  // mirroring the live path (which forwards everything but "comment"). This is what
+  // surfaces the full stream — shots, corners, cards, subs, fouls, offsides, saves…
+  const NOISE = new Set(["comment", "coverage_update", "coverageupdate", "commentary"]);
   const ordered = [...rows].sort((a, b) => numOr(a.Ts) - numOr(b.Ts));
   let seq = 1;
   let lastGoals = { h: 0, a: 0 };
@@ -375,7 +400,7 @@ export async function buildRealReplay(fx: Fixture): Promise<Frame[] | null> {
     // clock tick
     frames.push({ kind: "clock", minute, phase, delay: 90 });
 
-    if (NOTABLE.has(action)) {
+    if (action && !NOISE.has(action)) {
       const p = numOr(r.Participant, 0);
       const t: "home" | "away" | null = p === 1 ? "home" : p === 2 ? "away" : null;
       const teamName = t === "home" ? fx.home.name : t === "away" ? fx.away.name : "";
@@ -398,4 +423,103 @@ export async function buildRealReplay(fx: Fixture): Promise<Frame[] | null> {
   // brief hold at the end before the SSE route loops
   frames.push({ kind: "clock", minute: frames.length ? 90 : 0, phase: "FT", delay: 4000 });
   return frames;
+}
+
+// Real time (ms) each match-minute occupies at 1× speed. 60,000ms = one wall-
+// clock minute per match-minute, so 1× IS real time: a 90' match takes 90 min,
+// like watching it live. The ?speed= factor divides this at playback, so 2× =
+// 45 min, 5× = 18 min, 10× = 9 min, 20× = 4.5 min.
+export const REPLAY_MS_PER_MIN = Number(process.env.REPLAY_MS_PER_MIN ?? 60_000);
+
+/** Coarse phase from a match minute (half-time break and extra time elided). */
+function phaseFromMinute(m: number): Phase {
+  return m <= 45 ? "H1" : "H2";
+}
+
+/**
+ * Reconstruct a SMOOTH, minute-by-minute replay from a fixture's (sparse) real
+ * frame log.
+ *
+ * The problem: a finished match's /scores/snapshot is sparse — most rows carry
+ * no clock (so `minute` reads 0) and the few real events cluster late, so the
+ * raw timeline lurches (0' → 0' → … → 84') and the needle whips around instead
+ * of tracking the game. What IS reliable in that log is the event minutes and
+ * the running score; this walks a continuous 0'..N' clock and re-derives the
+ * modelled needle each minute via `simInPlayProbs(anchor, score, minute)`,
+ * dropping the real events back in at their real minutes.
+ *
+ * It is a PLAYBACK transform (like the pace factor): it runs on whatever frames
+ * we already have — cached OR freshly built — so it fixes every one of the
+ * 45-day cached replays with no rebuild and no dependency on the live feed. The
+ * events, minutes and scores stay the fixture's REAL log; only the per-minute
+ * needle path between them is modelled (as it already was, just densely now).
+ */
+export function buildSmoothReplay(raw: Frame[]): Frame[] {
+  // Real pre-match anchor: parse it back out of the first odds frame the
+  // builder seeded (Pct is aligned to PriceNames ["1","X","2"]).
+  const firstOdds = raw.find((f): f is Extract<Frame, { kind: "odds" }> => f.kind === "odds");
+  const toN = (s: string | undefined) => (s == null || s === "NA" ? NaN : Number(s));
+  const anchor = { home: 40, draw: 30, away: 30 };
+  if (firstOdds) {
+    const h = toN(firstOdds.Pct[firstOdds.PriceNames.indexOf("1")]);
+    const d = toN(firstOdds.Pct[firstOdds.PriceNames.indexOf("X")]);
+    const a = toN(firstOdds.Pct[firstOdds.PriceNames.indexOf("2")]);
+    if (Number.isFinite(h) && Number.isFinite(a)) {
+      anchor.home = h;
+      anchor.draw = Number.isFinite(d) ? d : 0;
+      anchor.away = a;
+    }
+  }
+
+  const scoreFrames = raw.filter((f): f is Extract<Frame, { kind: "score" }> => f.kind === "score");
+  const ftEvent = scoreFrames.find((e) => e.action === "game_finalised");
+  // Real in-play events with a valid minute (goals/cards/…), earliest first.
+  const playEvents = scoreFrames
+    .filter((e) => e.action !== "game_finalised" && e.minute > 0)
+    .sort((x, y) => x.minute - y.minute || x.seq - y.seq);
+
+  const eventMax = playEvents.reduce((m, e) => Math.max(m, e.minute), 0);
+  const finalMinute = Math.min(120, Math.max(eventMax, 90));
+
+  // Running score = the latest real event at/under minute m (0-0 before the first).
+  const scoreAt = (m: number) => {
+    let sh = 0;
+    let sa = 0;
+    for (const e of playEvents) {
+      if (e.minute > m) break;
+      sh = e.scoreH;
+      sa = e.scoreA;
+    }
+    return { sh, sa };
+  };
+
+  const oddsFrame = (p: { home: number; draw: number; away: number }, delay: number): Frame => ({
+    kind: "odds",
+    PriceNames: ["1", "X", "2"],
+    Pct: [String(p.home), String(p.draw), String(p.away)],
+    SuperOddsType: "1X2",
+    delay,
+  });
+
+  const out: Frame[] = [];
+  // Kick-off seeded at the real pre-match price.
+  out.push({ kind: "clock", minute: 0, phase: "PRE", delay: 200 });
+  out.push(oddsFrame(anchor, 0));
+
+  // Tick every match-minute: clock first (so the candle sample the next odds
+  // frame emits is stamped with THIS minute), then the re-derived needle, then
+  // any real events landing on this minute.
+  for (let m = 1; m <= finalMinute; m++) {
+    const { sh, sa } = scoreAt(m);
+    out.push({ kind: "clock", minute: m, phase: phaseFromMinute(m), delay: REPLAY_MS_PER_MIN });
+    out.push(oddsFrame(simInPlayProbs(anchor, sh, sa, m), 0));
+    for (const e of playEvents) {
+      if (e.minute === m) out.push({ ...e, delay: 240 });
+    }
+  }
+
+  // Full-time: the real finalised event (re-stamped to the end), then a hold.
+  if (ftEvent) out.push({ ...ftEvent, minute: finalMinute, delay: 240 });
+  out.push({ kind: "clock", minute: finalMinute, phase: "FT", delay: 4000 });
+  return out;
 }

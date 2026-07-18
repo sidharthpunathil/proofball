@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import { DUR, EASE_OUT } from "@/lib/motion";
 
@@ -40,7 +40,7 @@ export default function PlayQR({ path }: { path?: string }) {
     >
       <span className="device-qr-card">
         {url ? (
-          <motion.span
+          <m.span
             style={{ display: "inline-block" }}
             initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
             animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1 }}
@@ -54,7 +54,7 @@ export default function PlayQR({ path }: { path?: string }) {
               bgColor="#ffffff"
               fgColor="#0c0c0e"
             />
-          </motion.span>
+          </m.span>
         ) : (
           <span className="device-qr-ph" aria-hidden />
         )}

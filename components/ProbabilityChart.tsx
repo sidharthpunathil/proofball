@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion, useMotionValueEvent, useReducedMotion, useSpring, type Variants } from "framer-motion";
+import { m, useMotionValueEvent, useReducedMotion, useSpring, type Variants } from "framer-motion";
 import { ArrowUp, ArrowDown } from "./Icons";
+import Flag from "./Flag";
 import Segmented from "./Segmented";
 import { EASE_OUT, DUR, springSoft } from "@/lib/motion";
 import { toCandles, priceDomain, type Sample, type Candle } from "@/lib/candles";
@@ -184,18 +185,18 @@ export default function ProbabilityChart({
           {/* Candles. Keyed by interval so a timeframe switch replays the staggered
               intro; within a timeframe, only a freshly-formed candle animates in. */}
           {hasSeries && (
-            <motion.g key={interval} variants={container} initial="hidden" animate="show">
+            <m.g key={interval} variants={container} initial="hidden" animate="show">
               {visible.map((c, i) => (
                 <CandleMark key={c.bucket} c={c} x={cx(i)} bodyW={bodyW} y={y} variants={item} />
               ))}
-            </motion.g>
+            </m.g>
           )}
 
           {/* Live-price line + tag, glided by the spring (kept outside the keyed
               group so it persists smoothly across timeframe changes). Only once
               there is a real series; pre-match the headline % carries the value. */}
           {hasSeries && (
-            <motion.g style={{ y: cy }}>
+            <m.g style={{ y: cy }}>
               <line
                 x1={PL}
                 x2={W - PR}
@@ -220,7 +221,7 @@ export default function ProbabilityChart({
                   {display}
                 </text>
               </g>
-            </motion.g>
+            </m.g>
           )}
 
           {/* Pre-match / just-connected: no in-play moves to plot yet. */}
@@ -259,7 +260,7 @@ export default function ProbabilityChart({
       {/* Legend mirrors the gauge exactly, so switching modes leaves it steady. */}
       <div className="mt-1.5 flex items-center justify-between px-1 text-[13px] font-semibold">
         <div className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: awayColor }} />
+          <Flag abbr={away} color={awayColor} />
           <span className="text-mut">{away}</span>
           <span className="tabular-nums text-ink">{awayProb.toFixed(0)}%</span>
         </div>
@@ -270,7 +271,7 @@ export default function ProbabilityChart({
         <div className="flex items-center gap-1.5">
           <span className="tabular-nums text-ink">{homeProb.toFixed(0)}%</span>
           <span className="text-mut">{home}</span>
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: homeColor }} />
+          <Flag abbr={home} color={homeColor} />
           {dir === "up" && <ArrowUp size={14} className="text-grn" />}
           {dir === "down" && <ArrowDown size={14} className="text-red" />}
         </div>
@@ -299,9 +300,9 @@ function CandleMark({
   const bottom = y(Math.min(c.open, c.close));
   const bodyH = Math.max(1.5, bottom - top);
   return (
-    <motion.g
+    <m.g
       variants={variants}
-      style={{ transformBox: "fill-box", transformOrigin: "center", willChange: "transform, opacity" }}
+      style={{ transformBox: "fill-box", transformOrigin: "center" }}
     >
       {/* wick: high → low */}
       <line
@@ -324,6 +325,6 @@ function CandleMark({
         className={bodyClass}
         opacity={0.95}
       />
-    </motion.g>
+    </m.g>
   );
 }

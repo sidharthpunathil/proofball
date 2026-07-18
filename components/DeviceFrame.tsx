@@ -21,7 +21,7 @@
  */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, useReducedMotion } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import PlayQR from "@/components/PlayQR";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -52,7 +52,7 @@ export default function DeviceFrame({ children }: { children: React.ReactNode })
     );
   }
   return (
-    <motion.div
+    <m.div
       className="device-root"
       initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -101,7 +101,7 @@ export default function DeviceFrame({ children }: { children: React.ReactNode })
       {/* Scan-to-play QR rides only with an open match and encodes this match's
           deep link, so a scan opens the same game on the player's phone. */}
       <PlayQR path={pathname ?? undefined} />
-    </motion.div>
+    </m.div>
   );
 }
 

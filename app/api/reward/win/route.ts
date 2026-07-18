@@ -50,9 +50,13 @@ export async function POST(req: Request) {
   // Sized to allow continuous real play (a call settles roughly every ~15s) while
   // capping automated bursts. Per-wallet AND per-IP AND a global mint budget.
   const ip = clientIp(req);
-  const okWallet = await rateLimit(`win:wallet:${wallet}`, 300, 3600);
-  const okIp = await rateLimit(`win:ip:${ip}`, 400, 3600);
-  const okGlobal = await rateLimit("win:global", 5000, 3600);
+  // The three limits are independent, so issue them in one round-trip instead of
+  // three sequential Redis hops on the hot settle path (a call settles ~every 15s).
+  const [okWallet, okIp, okGlobal] = await Promise.all([
+    rateLimit(`win:wallet:${wallet}`, 300, 3600),
+    rateLimit(`win:ip:${ip}`, 400, 3600),
+    rateLimit("win:global", 5000, 3600),
+  ]);
   if (!okWallet || !okIp || !okGlobal) {
     // Don't fail the call — the leaderboard points already counted client-side;
     // the on-chain top-up is just skipped for this one until the window resets.

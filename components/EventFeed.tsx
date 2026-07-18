@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { m, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { useFixture } from "@/lib/fixture-context";
 import { springPop, tweenFast } from "@/lib/motion";
@@ -13,14 +13,19 @@ export default function EventFeed() {
 
   return (
     <div className="px-4">
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-mut">Match events</div>
+      <div className="mb-2 flex items-baseline justify-between">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-mut">Match events</span>
+        <span className="text-[11px] font-medium tabular-nums text-faint">{events.length}</span>
+      </div>
+      {/* The full event log, newest first, scrolling horizontally — as many real
+          events (goals, shots, corners, cards…) as the feed has delivered. */}
       <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
         <AnimatePresence initial={false}>
-          {events.slice(0, 8).map((e) => {
+          {events.map((e) => {
             const color =
               e.team === "home" ? fixture.home.color : e.team === "away" ? fixture.away.color : "rgb(var(--mut))";
             return (
-              <motion.div
+              <m.div
                 key={e.id}
                 layout
                 initial={reduce ? false : { opacity: 0, x: -16, scale: e.big ? 0.82 : 0.94 }}
@@ -36,7 +41,7 @@ export default function EventFeed() {
                 <span className={`whitespace-nowrap font-medium ${e.big ? "text-ink" : "text-ink2"}`}>
                   {e.label}
                 </span>
-              </motion.div>
+              </m.div>
             );
           })}
         </AnimatePresence>

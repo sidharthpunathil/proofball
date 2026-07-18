@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useMotionValueEvent, useReducedMotion, useSpring } from "framer-motion";
+import { m, useMotionValueEvent, useReducedMotion, useSpring } from "framer-motion";
 import { ArrowUp, ArrowDown } from "./Icons";
+import Flag from "./Flag";
 import { EASE_OUT, DUR, springPop } from "@/lib/motion";
 
 interface Props {
@@ -81,12 +82,12 @@ export default function ProbabilityNeedle({
           strokeDasharray={`${p} 100`}
           style={{ transition: reduce ? "none" : "stroke-dasharray 0.7s cubic-bezier(0.16,1,0.3,1)" }}
         />
-        <motion.g
+        <m.g
           animate={{ x: t.x, y: t.y }}
           transition={reduce ? { duration: 0 } : { duration: 0.7, ease: EASE_OUT }}
         >
           {/* One-shot goal halo: fires only on a big event (flashKey), never on routine ticks. */}
-          <motion.circle
+          <m.circle
             key={flashKey}
             r={8}
             className={dir === "down" ? "fill-red" : "fill-grn"}
@@ -96,7 +97,7 @@ export default function ProbabilityNeedle({
             transition={{ duration: DUR.slow, ease: EASE_OUT }}
           />
           {/* Knob: pops on a big event, otherwise rides the arc tip on the same curve as the fill. */}
-          <motion.circle
+          <m.circle
             key={`knob-${flashKey}`}
             r={8}
             className="fill-bg stroke-grn"
@@ -109,7 +110,7 @@ export default function ProbabilityNeedle({
             animate={{ scale: 1 }}
             transition={reduce ? { duration: 0 } : springPop}
           />
-        </motion.g>
+        </m.g>
 
         <text
           x={CX}
@@ -136,7 +137,7 @@ export default function ProbabilityNeedle({
 
       <div className="mt-1 flex items-center justify-between px-1 text-[13px] font-semibold">
         <div className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: awayColor }} />
+          <Flag abbr={away} color={awayColor} />
           <span className="text-mut">{away}</span>
           <span className="tabular-nums text-ink">{awayProb.toFixed(0)}%</span>
         </div>
@@ -147,7 +148,7 @@ export default function ProbabilityNeedle({
         <div className="flex items-center gap-1.5">
           <span className="tabular-nums text-ink">{homeProb.toFixed(0)}%</span>
           <span className="text-mut">{home}</span>
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: homeColor }} />
+          <Flag abbr={home} color={homeColor} />
           {dir === "up" && <ArrowUp size={14} className="text-grn" />}
           {dir === "down" && <ArrowDown size={14} className="text-red" />}
         </div>

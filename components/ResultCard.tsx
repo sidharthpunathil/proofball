@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Fixture } from "@/lib/txline-fixtures";
 import { ChevronRight } from "@/components/Icons";
+import Flag from "@/components/Flag";
 
 /**
  * A finished-match result row: teams, real final score, winner emphasised.
@@ -28,7 +29,7 @@ export default function ResultCard({
       )}
       <div className="flex flex-1 items-center justify-center gap-3 text-[15px] font-bold">
         <span className={`flex items-center gap-1.5 ${homeWon ? "text-ink" : "text-mut"}`}>
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: fixture.home.color }} />
+          <Flag abbr={fixture.home.abbr} color={fixture.home.color} />
           {fixture.home.abbr}
         </span>
         <span className="tabular-nums text-ink">
@@ -36,7 +37,7 @@ export default function ResultCard({
         </span>
         <span className={`flex items-center gap-1.5 ${awayWon ? "text-ink" : "text-mut"}`}>
           {fixture.away.abbr}
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: fixture.away.color }} />
+          <Flag abbr={fixture.away.abbr} color={fixture.away.color} />
         </span>
       </div>
       <ChevronRight size={16} className="shrink-0 text-faint transition group-hover:text-mut motion-safe:md:group-hover:translate-x-0.5" />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { DUR, EASE_OUT, listContainer, listItem, springPop, springSoft } from "@/lib/motion";
 import { ArrowUp, Trophy, Flame } from "./Icons";
@@ -67,7 +67,7 @@ export default function Leaderboard() {
           </p>
         </div>
       ) : (
-        <motion.div
+        <m.div
           className="overflow-hidden rounded-[22px] border border-line bg-surface shadow-soft"
           variants={reduce ? undefined : listContainer}
           initial={reduce ? false : "hidden"}
@@ -77,7 +77,7 @@ export default function Leaderboard() {
             const youClimb = r.you && climb != null; // your climb pulse/arrow is live
             const youTop3 = r.you && top3 != null && !reduce; // your top-3 chip pop is live
             return (
-            <motion.div
+            <m.div
               key={r.name}
               layout={!reduce}
               variants={reduce ? undefined : listItem}
@@ -90,7 +90,7 @@ export default function Leaderboard() {
                   Kept for reduced motion too — it's a fade, not travel. */}
               <AnimatePresence>
                 {youClimb && (
-                  <motion.span
+                  <m.span
                     key={`pulse-${climb}`}
                     className="pointer-events-none absolute inset-0 bg-grn/15"
                     initial={{ opacity: 1 }}
@@ -101,7 +101,7 @@ export default function Leaderboard() {
                 )}
               </AnimatePresence>
               <span className="relative flex shrink-0 items-center">
-                <motion.span
+                <m.span
                   key={youTop3 ? `chip-${top3}` : "chip"}
                   initial={youTop3 ? { scale: 0.7 } : false}
                   animate={youTop3 ? { scale: 1 } : undefined}
@@ -111,12 +111,12 @@ export default function Leaderboard() {
                   }`}
                 >
                   {i + 1}
-                </motion.span>
+                </m.span>
                 {/* Rank-up arrow: appears beside your chip and fades over DUR.base.
                     Skipped under reduced motion (no appearance/travel). */}
                 <AnimatePresence>
                   {youClimb && !reduce && (
-                    <motion.span
+                    <m.span
                       key={`arrow-${climb}`}
                       className="pointer-events-none absolute left-full ml-1 text-grn"
                       initial={{ opacity: 0, y: 5, scale: 0.8 }}
@@ -125,7 +125,7 @@ export default function Leaderboard() {
                       transition={{ duration: DUR.base, ease: EASE_OUT }}
                     >
                       <ArrowUp size={14} strokeWidth={2.5} />
-                    </motion.span>
+                    </m.span>
                   )}
                 </AnimatePresence>
               </span>
@@ -138,12 +138,15 @@ export default function Leaderboard() {
                   <Flame size={12} className="text-amber" />
                   {r.streak}
                 </span>
-                <span className="tabular-nums text-[14px] font-bold text-ink">{r.coins.toLocaleString()}</span>
+                <span className="flex items-center gap-1 tabular-nums text-[14px] font-bold text-ink">
+                  <img src="/proof-mark.png" alt="$PROOF" className="h-auto w-[18px] shrink-0" />
+                  {r.coins.toLocaleString()}
+                </span>
               </span>
-            </motion.div>
+            </m.div>
             );
           })}
-        </motion.div>
+        </m.div>
       )}
     </div>
   );

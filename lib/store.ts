@@ -10,9 +10,22 @@ const HISTORY_LEN = 48;
 // minute-stamped tape than the 48-point sparkline. A match tops out at a few
 // hundred odds ticks; 720 is generous headroom that still bounds memory.
 const SAMPLE_LEN = 720;
+// Keep the full match event log, not just the last handful, so the feed can show
+// as many real events (goals, shots, corners, cards…) as the API emits. A match
+// tops out around a hundred events; 300 is generous headroom that still bounds
+// memory. The feed renders newest-first and scrolls horizontally through them.
+const MATCH_EVENTS_LEN = 300;
 
 let _id = 0;
 const nextId = () => `${Date.now()}-${_id++}`;
+
+/** Outcome of a cash-out (playable $PROOF ledger → real on-chain mint). */
+export interface CashOutResult {
+  ok: boolean;
+  error?: string;
+  minted?: number; // whole $PROOF actually minted on-chain
+  explorerUrl?: string;
+}
 
 // Storage for the persist middleware. Only a browser has localStorage, so on the
 // server (Next SSR) and under tests we fall back to a no-op — persistence simply
@@ -89,6 +102,14 @@ interface StoreState {
   dismissWelcome: () => void;
   retryAirdrop: () => void;
   refreshProof: () => Promise<void>;
+  // Cash out `amount` playable $PROOF: debit the in-game ledger and mint an equal
+  // amount of REAL on-chain $PROOF into the wallet. Resolves to the outcome so the
+  // Earn card can show a receipt / error without a global one-shot token.
+  cashOut: (amount: number) => Promise<CashOutResult>;
+  // Credit the playable ledger after a top-up's on-chain transfer has been verified
+  // server-side. The signature + verification happen in the component (it needs the
+  // wallet); this just moves the already-confirmed amount into the ledger + board.
+  applyDeposit: (amount: number) => void;
   openMarket: (now: number) => void;
   setPick: (dir: PickDir) => void;
   lockMarket: (now: number) => void;
@@ -119,7 +140,7 @@ export const useStore = create<StoreState>()(
   flashKey: 0,
 
   user: null,
-  coins: 500,
+  coins: PROOF.start,
   streak: 0,
   best: 0,
   current: null,
@@ -186,7 +207,7 @@ export const useStore = create<StoreState>()(
         scoreA: f.scoreA,
         minute: f.minute,
         lastEvent: ev,
-        events: [ev, ...s.events].slice(0, 20),
+        events: [ev, ...s.events].slice(0, MATCH_EVENTS_LEN),
         flashKey: big ? s.flashKey + 1 : s.flashKey,
       }));
     }
@@ -202,6 +223,9 @@ export const useStore = create<StoreState>()(
     // first-time player onto the shared board — we must NOT eagerly post the
     // local default here, or it would reset a returning player's lower score.
     void get().restoreScore(name);
+    // Load this wallet's durable call history (DB-backed) so "Your calls"
+    // survives reloads, cache clears and other devices, not just localStorage.
+    void loadStoredPicks(wallet);
     // Claim the one-time welcome airdrop. The server is the mint authority and is
     // idempotent, so a reconnect never re-airdrops. claimWelcomeAirdrop retries the
     // cold-start 503 (a freshly-woken instance rejects its first Redis call, then
@@ -235,6 +259,73 @@ export const useStore = create<StoreState>()(
     } catch {
       /* keep the last known balance */
     }
+  },
+
+  // Cash out playable $PROOF into the wallet as real on-chain tokens. Optimistic:
+  // the in-game ledger drops instantly (so the balance and the leaderboard move
+  // right away), then the server mints the same amount on-chain. If the mint fails
+  // — nothing landed — we roll the ledger back. Functional set()s keep this safe if
+  // a call happens to settle mid-flight.
+  cashOut: async (amount) => {
+    const wallet = get().user?.wallet;
+    if (!wallet) return { ok: false, error: "Connect a wallet first" };
+
+    const amt = Math.floor(amount);
+    if (!Number.isFinite(amt) || amt < PROOF.cashout.min) {
+      return { ok: false, error: `Cash out at least ${PROOF.cashout.min} $PROOF` };
+    }
+    if (amt > get().coins) return { ok: false, error: "Not enough $PROOF" };
+
+    const applyDelta = (delta: number) =>
+      set((st) => {
+        const coins = Math.max(0, st.coins + delta);
+        return {
+          coins,
+          leaderboard: mergeYou(st.leaderboard, st.user?.name ?? "you", coins, st.streak),
+        };
+      });
+
+    applyDelta(-amt); // optimistic debit
+    postScore(get().user?.name, get().coins, get().streak);
+
+    try {
+      const res = await fetch("/api/swap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wallet, amount: amt }),
+      });
+      const d = (await res.json().catch(() => null)) as
+        | { minted?: boolean; amount?: number; balance?: number; explorerUrl?: string; rateLimited?: boolean; error?: string }
+        | null;
+
+      if (!res.ok || !d?.minted) {
+        applyDelta(amt); // roll back — nothing was minted
+        postScore(get().user?.name, get().coins, get().streak);
+        const error = d?.rateLimited
+          ? "Too many cash-outs — try again shortly"
+          : d?.error || "Cash out failed";
+        return { ok: false, error };
+      }
+
+      // Real $PROOF landed in the wallet; reflect the on-chain balance for the receipt.
+      if (typeof d.balance === "number") set({ proof: d.balance });
+      return { ok: true, minted: d.amount ?? amt, explorerUrl: d.explorerUrl };
+    } catch {
+      applyDelta(amt); // roll back on a transport error
+      postScore(get().user?.name, get().coins, get().streak);
+      return { ok: false, error: "Network error — try again" };
+    }
+  },
+
+  applyDeposit: (amount) => {
+    const amt = Math.floor(amount);
+    if (!Number.isFinite(amt) || amt <= 0) return;
+    set((st) => {
+      const coins = st.coins + amt;
+      return { coins, leaderboard: mergeYou(st.leaderboard, st.user?.name ?? "you", coins, st.streak) };
+    });
+    postScore(get().user?.name, get().coins, get().streak);
+    void get().refreshProof(); // the wallet balance dropped on-chain; reflect it in the receipt
   },
 
   openMarket: (now) => {
@@ -317,10 +408,13 @@ export const useStore = create<StoreState>()(
     });
     // Persist the new total to the shared Redis leaderboard.
     postScore(s.user?.name, coins, streak);
-    // A correct call also pays out for real: mint the reward as devnet $PROOF to
-    // the wallet on-chain. This is what makes playing a finished match real play
-    // and not just points. Best-effort — the game never blocks on the chain.
-    if (won && reward > 0) mintWin(s.user?.wallet, reward);
+    // Durably record the settled call in the DB, keyed by wallet, so it can be
+    // reloaded on any later session or device (localStorage is only a fast cache).
+    savePickToDb(s.user?.wallet, settled);
+    // The gameplay loop is off-chain by design ("$PROOF is the game", arcade
+    // model): a settled call moves the playable ledger instantly, with no wallet
+    // signature and no chain write. Real on-chain $PROOF is minted only on the
+    // welcome airdrop and when the player deliberately cashes out (see cashOut).
   },
 
   syncLeaderboard: async () => {
@@ -410,6 +504,35 @@ const airdropBackoff = (attempt: number) => 400 + attempt * 600; // 0.4s, 1.0s, 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * Decide the terminal outcome once the claim POST can't confirm an airdrop. A
+ * rate-limited (429) or transient POST fails even for a wallet that ALREADY holds
+ * its airdrop — showing "couldn't load" there is wrong. The GET balance read is
+ * NOT rate-limited, so it's a reliable last check: an already-funded wallet just
+ * reflects its balance (no toast); only a genuinely unfunded wallet gets the error
+ * toast + Retry. Guarded on the wallet still being current.
+ */
+async function resolveAirdropOutcome(wallet: string): Promise<void> {
+  let balance = 0;
+  try {
+    const res = await fetch(`/api/reward/airdrop?wallet=${encodeURIComponent(wallet)}`, {
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const d = await res.json();
+      if (typeof d?.balance === "number") balance = d.balance;
+    }
+  } catch {
+    /* no balance read → treat as unfunded below */
+  }
+  if (useStore.getState().user?.wallet !== wallet) return;
+  if (balance >= PROOF.airdrop) {
+    useStore.setState({ proof: balance }); // already funded — the claim just couldn't run
+  } else {
+    useStore.setState({ welcome: { kind: "error" }, proof: balance });
+  }
+}
+
+/**
  * Claim the one-time welcome airdrop for `wallet`, tolerant of the cold-start race
  * above. Retries the transient statuses and ALWAYS resolves to a visible outcome so
  * a new wallet is never left silently at 0 $PROOF:
@@ -447,7 +570,7 @@ async function claimWelcomeAirdrop(wallet: string, attempt = 0): Promise<void> {
       if (isCurrent()) await claimWelcomeAirdrop(wallet, attempt + 1);
       return;
     }
-    useStore.setState({ welcome: { kind: "error" } });
+    await resolveAirdropOutcome(wallet);
   } catch {
     // Network / transport error — retry, then surface the error toast.
     if (!isCurrent()) return;
@@ -456,31 +579,7 @@ async function claimWelcomeAirdrop(wallet: string, attempt = 0): Promise<void> {
       if (isCurrent()) await claimWelcomeAirdrop(wallet, attempt + 1);
       return;
     }
-    useStore.setState({ welcome: { kind: "error" } });
-  }
-}
-
-// Fire-and-forget on-chain payout of a won call: mints the reward as REAL devnet
-// $PROOF to the wallet (server holds the mint authority). The leaderboard points
-// already counted synchronously; this tops up the real balance and, on success,
-// updates the store's `proof` so the Profile/Earn balance reflects the chain.
-// Fully best-effort: any failure (rate limit, RPC hiccup, no wallet) is swallowed.
-function mintWin(wallet: string | undefined, amount: number): void {
-  if (!wallet || amount <= 0) return;
-  try {
-    void fetch("/api/reward/win", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ wallet, amount }),
-      keepalive: true,
-    })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d && typeof d.balance === "number") useStore.setState({ proof: d.balance });
-      })
-      .catch(() => {});
-  } catch {
-    /* ignore */
+    await resolveAirdropOutcome(wallet);
   }
 }
 
@@ -496,6 +595,60 @@ function postScore(name: string | undefined, coins: number, streak: number): voi
     }).catch(() => {});
   } catch {
     /* ignore */
+  }
+}
+
+// Fire-and-forget durable save of a settled call to the DB, keyed by wallet.
+// The gameplay loop stays off-chain ("$PROOF is the game"); this is just the
+// player's own call record, so it needs no signature — the route validates the
+// wallet and clamps the reward.
+function savePickToDb(wallet: string | undefined, pick: Prediction): void {
+  if (!wallet) return;
+  try {
+    void fetch("/api/picks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        wallet,
+        pick: {
+          id: pick.id,
+          dir: pick.dir,
+          status: pick.status,
+          delta: pick.delta,
+          reward: pick.reward,
+          verifyUrl: pick.verifyUrl,
+          createdAt: pick.createdAt,
+          settledAt: pick.settleAt,
+        },
+      }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
+}
+
+// Load a wallet's durable call history from the DB and merge it into the
+// in-memory list: DB is authoritative, but we keep any just-made local call not
+// yet saved. Guarded on the wallet still being current (a mid-flight account
+// switch must not clobber the new session), like the airdrop claim.
+async function loadStoredPicks(wallet: string): Promise<void> {
+  try {
+    const res = await fetch(`/api/picks?wallet=${encodeURIComponent(wallet)}`, { cache: "no-store" });
+    if (!res.ok) return;
+    const d = (await res.json().catch(() => null)) as { picks?: Prediction[] } | null;
+    if (!d?.picks || useStore.getState().user?.wallet !== wallet) return;
+    useStore.setState((st) => {
+      const byId = new Map<string, Prediction>();
+      for (const p of st.history) byId.set(p.id, p); // local session calls
+      for (const p of d.picks!) byId.set(p.id, p); // DB wins on shared ids
+      const merged = [...byId.values()]
+        .sort((a, b) => (b.settleAt ?? 0) - (a.settleAt ?? 0))
+        .slice(0, 30);
+      return { history: merged };
+    });
+  } catch {
+    /* offline — keep the localStorage-cached calls */
   }
 }
 

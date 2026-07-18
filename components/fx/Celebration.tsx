@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { EASE_OUT, springPop } from "@/lib/motion";
 import { Flame, Trophy } from "../Icons";
@@ -43,7 +43,7 @@ export default function Celebration() {
   return (
     <AnimatePresence>
       {fire && (
-        <motion.div
+        <m.div
           key={fire.n}
           className="pointer-events-none absolute inset-0 z-[70] flex items-start justify-center overflow-hidden"
           initial={{ opacity: 1 }}
@@ -58,7 +58,7 @@ export default function Celebration() {
               const drift = ((i % 5) - 2) * 14;
               const rotate = (i % 2 ? 1 : -1) * (120 + (i % 3) * 80);
               return (
-                <motion.span
+                <m.span
                   key={i}
                   className="absolute top-0 h-2.5 w-1.5 rounded-[1px]"
                   style={{ left: `${left}%`, background: color }}
@@ -70,7 +70,7 @@ export default function Celebration() {
             })}
 
           {/* banner */}
-          <motion.div
+          <m.div
             className="mt-24 flex items-center gap-2.5 rounded-full border border-line bg-surface/95 px-4 py-2.5 shadow-card backdrop-blur-md"
             initial={reduce ? { opacity: 0 } : { scale: 0.7, opacity: 0, y: -8 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -86,8 +86,8 @@ export default function Celebration() {
             <span className="rounded-full bg-ink px-2 py-0.5 text-[12px] font-bold tabular-nums text-bg">
               ×{fire.streak}
             </span>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

@@ -69,12 +69,14 @@ export default function Error({
         </p>
         <div className="mt-5 flex items-center justify-center gap-2">
           <button
+            type="button"
             onClick={() => reset()}
             className="rounded-full border border-line bg-subtle px-4 py-2 text-[13px] font-semibold text-ink transition-colors hover:bg-line"
           >
             Try again
           </button>
           <button
+            type="button"
             onClick={() => window.location.reload()}
             className="rounded-full bg-red px-4 py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
           >

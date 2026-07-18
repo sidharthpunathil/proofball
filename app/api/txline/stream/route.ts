@@ -1,6 +1,12 @@
 import { buildReplay } from "@/lib/demo-fixture";
 import { loadRecordedFrames } from "@/lib/recorded";
-import { getFixture, buildRealReplay, FEATURED_FIXTURE_ID } from "@/lib/txline-fixtures";
+import {
+  getFixture,
+  buildRealReplay,
+  buildSmoothReplay,
+  REPLAY_MS_PER_MIN,
+  FEATURED_FIXTURE_ID,
+} from "@/lib/txline-fixtures";
 import { getCredentials } from "@/lib/txline-auth";
 import { openLiveStream } from "@/lib/txline-live";
 import { cacheGetJSON, cacheSetJSON } from "@/lib/redis";
@@ -19,24 +25,28 @@ export const maxDuration = 300;
 const REPLAY_CACHE_PREFIX = "proofball:replay:v1:";
 const REPLAY_TTL_SEC = 60 * 60 * 24 * 45;
 
-// A finished match is a WATCHABLE SIMULATION, not a live broadcast. Its per-frame
-// delays were tuned for event density, so the whole 90' runs by in well under a
-// minute — faster than a single predict → settle cycle, so the needle whips
-// around and can't really be called. We slow finished replays by a fixed factor,
-// applied at PLAYBACK so it also fixes the 45-day cached replays (no cache bust),
-// and floor/cap each gap so motion stays legible without long dead pauses.
-// Tunable live via ?pace=N (per request) or REPLAY_PACE (global) — no code change.
-// Note: too slow is also bad — if the needle barely moves in a 30s call window,
-// the |delta|>0.3 settle threshold makes calls unwinnable. ~4x is the sweet spot.
-const REPLAY_PACE = clampPace(Number(process.env.REPLAY_PACE ?? 4), 4);
-const REPLAY_MIN_GAP_MS = Number(process.env.REPLAY_MIN_GAP_MS ?? 130);
-// Cap any single gap so a dense run of events (shots, corners) never turns into a
-// string of long dead pauses — snappy beats, just slower overall.
-const REPLAY_MAX_GAP_MS = Number(process.env.REPLAY_MAX_GAP_MS ?? 2500);
+// A finished match is a WATCHABLE SIMULATION, not a live broadcast. Its real
+// /scores/snapshot log is SPARSE — most rows carry no clock and the few real
+// events cluster late — so played raw the clock lurches (0' → 84') and the
+// needle whips around uncallably. `buildSmoothReplay` reconstructs a continuous
+// minute-by-minute timeline from the real events + running score; this happens
+// at PLAYBACK, so it also fixes the 45-day cached replays with no cache bust.
+//
+// Playback speed is user-facing: ?speed=N (1 = real time, a 90' match takes 90
+// min; 2/5/10/20 fast-forward). It DIVIDES each gap. We floor/cap each gap so a
+// dense burst never stalls and a high speed still animates rather than teleports.
+// The cap must never fall below one real-time match-minute, or 1× (a 60,000ms
+// per-minute gap) would be crushed and stop being real time , so it tracks
+// REPLAY_MS_PER_MIN.
+const SMOOTH_MIN_GAP_MS = Number(process.env.REPLAY_MIN_GAP_MS ?? 40);
+const REPLAY_MAX_GAP_MS = Math.max(
+  Number(process.env.REPLAY_MAX_GAP_MS ?? 0),
+  REPLAY_MS_PER_MIN,
+);
 
-/** Keep a pace factor sane: positive, and within a band that stays playable. */
-function clampPace(n: number, fallback: number): number {
-  return Number.isFinite(n) && n > 0 ? Math.min(Math.max(n, 0.5), 20) : fallback;
+/** Clamp the playback multiplier to a sane, playable band (1×–100×; default 1×). */
+function clampSpeed(n: number): number {
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, 100) : 1;
 }
 
 /**
@@ -58,12 +68,17 @@ export async function GET(req: Request) {
   const fixtureId = url.searchParams.get("fixtureId") ?? FEATURED_FIXTURE_ID;
   const fixture = await getFixture(fixtureId);
 
-  // Slow finished-match replays to a watchable, callable pace. Per-request
-  // override (?pace=N) wins over the configured default; live/upcoming keep raw
-  // timing, so `paced` is only ever applied on the finished path below.
-  const pace = clampPace(Number(url.searchParams.get("pace")), REPLAY_PACE);
-  const paced = (ms: number) =>
-    ms <= 0 ? 0 : Math.min(Math.max(Math.round(ms * pace), REPLAY_MIN_GAP_MS), REPLAY_MAX_GAP_MS);
+  // Playback speed for finished replays: ?speed=N (1 = watchable, 2/5/10 = fast
+  // forward). Divides each reconstructed gap; live/upcoming keep their own timing.
+  const speed = clampSpeed(Number(url.searchParams.get("speed")));
+  const speedGap = (ms: number) =>
+    ms <= 0 ? 0 : Math.min(Math.max(Math.round(ms / speed), SMOOTH_MIN_GAP_MS), REPLAY_MAX_GAP_MS);
+
+  // Resume point. Changing speed reconnects the stream; ?from=<minute already on
+  // screen> makes the replay seek past that minute and pick up where it left off
+  // (so a speed change keeps the current time + win-probability instead of
+  // snapping back to kick-off). 0/absent = play from the start. Finished only.
+  const from = Math.max(0, Math.floor(Number(url.searchParams.get("from")) || 0));
 
   // 1) In-running fixtures: attach the real live TxLINE stream.
   if (fixture?.status === "live") {
@@ -76,26 +91,40 @@ export async function GET(req: Request) {
 
   // 2) Real recorded event log + real odds for this fixture.
   if (fixture) {
-    const finished = fixture.status === "finished";
     const cacheKey = `${REPLAY_CACHE_PREFIX}${fixtureId}`;
 
-    // 2a) Finished match: serve the durable cached replay if we have one, so a
-    //     past game plays its REAL timeline without depending on the live feed.
-    if (finished) {
-      const cached = await cacheGetJSON<Frame[]>(cacheKey);
-      if (cached && cached.length > 1) {
-        return replay(req, cached.map((f) => ({ delay: paced(f.delay ?? 0), data: f })));
+    if (fixture.status === "finished") {
+      // Serve the durable cached RAW frames if present, else build + persist
+      // them. Either way the smooth minute-by-minute timeline is reconstructed
+      // at PLAYBACK (so cached replays are fixed too), then paced by ?speed=.
+      let rawFrames = await cacheGetJSON<Frame[]>(cacheKey);
+      if (!rawFrames || rawFrames.length <= 1) {
+        const built = await buildRealReplay(fixture);
+        if (built && built.length > 1) {
+          void cacheSetJSON(cacheKey, built, REPLAY_TTL_SEC);
+          rawFrames = built;
+        }
       }
-    }
-
-    // 2b) Build from the real feed. For a finished match, persist it so every
-    //     later play (any user, any instance) is feed-independent and fast.
-    const real = await buildRealReplay(fixture);
-    if (real && real.length > 1) {
-      if (finished) void cacheSetJSON(cacheKey, real, REPLAY_TTL_SEC);
-      // Cache the RAW frames (above) so the pace stays tunable; slow only on the
-      // way out, and only for a finished match. Upcoming keeps its real timing.
-      return replay(req, real.map((f) => ({ delay: finished ? paced(f.delay) : f.delay, data: f })));
+      if (rawFrames && rawFrames.length > 1) {
+        const smooth = buildSmoothReplay(rawFrames);
+        const paced = smooth.map((f) => ({ delay: speedGap(f.delay ?? 0), data: f }));
+        // Seek past the minute already on screen (see ?from=): skip up to the
+        // first clock AFTER `from`. The client keeps its state for the earlier
+        // minutes, and buildSmoothReplay is deterministic so they match exactly.
+        // Past the end (from ≥ final minute) resumes at the last frame.
+        let skipFirst = 0;
+        if (from > 0) {
+          const i = paced.findIndex((f) => f.data.kind === "clock" && f.data.minute > from);
+          skipFirst = i >= 0 ? i : paced.length - 1;
+        }
+        return replay(req, paced, skipFirst);
+      }
+    } else {
+      // Upcoming: the real feed with its own timing — no smoothing, no pacing.
+      const real = await buildRealReplay(fixture);
+      if (real && real.length > 1) {
+        return replay(req, real.map((f) => ({ delay: f.delay, data: f })));
+      }
     }
   }
 
@@ -115,20 +144,31 @@ export async function GET(req: Request) {
   return replay(req, buildReplay().map((f) => ({ delay: f.delay, data: f })));
 }
 
-function replay(req: Request, frames: { delay: number; data: Frame }[]): Response {
+function replay(
+  req: Request,
+  frames: { delay: number; data: Frame }[],
+  skipFirst = 0,
+): Response {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       const send = (obj: Frame) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
       try {
+        // On the FIRST pass, skip the frames before the resume point and paint
+        // the resumed state instantly; then honour the paced gaps. Every later
+        // loop replays the whole match from the top.
+        let first = true;
         while (!req.signal.aborted) {
-          for (const f of frames) {
+          const start = first ? skipFirst : 0;
+          for (let i = start; i < frames.length; i++) {
             if (req.signal.aborted) break;
-            await sleep(f.delay, req.signal);
+            const wait = first && i === start && skipFirst > 0 ? 0 : frames[i].delay;
+            await sleep(wait, req.signal);
             if (req.signal.aborted) break;
-            send(f.data);
+            send(frames[i].data);
           }
+          first = false;
         }
       } catch {
         /* client disconnected */

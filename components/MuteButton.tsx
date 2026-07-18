@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { tweenFast } from "@/lib/motion";
 import { useSound } from "@/lib/sound";
 
@@ -24,7 +24,7 @@ export default function MuteButton({ className = "" }: { className?: string }) {
   const showMuted = mounted && muted;
 
   return (
-    <motion.button
+    <m.button
       onClick={onClick}
       aria-label={showMuted ? "Turn sound on" : "Turn sound off"}
       aria-pressed={showMuted}
@@ -33,7 +33,7 @@ export default function MuteButton({ className = "" }: { className?: string }) {
       className={`relative flex h-8 w-8 items-center justify-center rounded-full border border-line bg-surface text-ink2 transition-colors hover:text-ink ${className}`}
     >
       <AnimatePresence initial={false} mode="wait">
-        <motion.span
+        <m.span
           key={showMuted ? "off" : "on"}
           initial={reduce ? { opacity: 0 } : { scale: 0.6, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -42,9 +42,9 @@ export default function MuteButton({ className = "" }: { className?: string }) {
           className="absolute inset-0 flex items-center justify-center"
         >
           {showMuted ? <SpeakerOff /> : <SpeakerOn />}
-        </motion.span>
+        </m.span>
       </AnimatePresence>
-    </motion.button>
+    </m.button>
   );
 }
 

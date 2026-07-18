@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { EASE_OUT, springPop, springSnappy, tweenFast } from "@/lib/motion";
 import { PROOF } from "@/lib/economy";
-import { ArrowUpRight, ArrowDownRight, Broadcast, Check, Close, Coin, ExternalLink, Flame } from "./Icons";
+import { ArrowUpRight, ArrowDownRight, Broadcast, Check, Close, ExternalLink, Flame } from "./Icons";
 import { playSound } from "@/lib/sound";
 import CoinBurst from "@/components/fx/CoinBurst";
 import CountUp from "@/components/fx/CountUp";
@@ -105,14 +105,14 @@ export default function PredictControl() {
           {/* streak combo badge — pops in at 3+ and re-pops each tier climb */}
           <AnimatePresence>
             {streak >= 3 && (
-              <motion.span
+              <m.span
                 initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6, transition: tweenFast }}
                 transition={reduce ? tweenFast : springPop}
                 className="inline-flex items-center gap-0.5 rounded-full bg-amber/15 px-1.5 py-[3px] text-[10px] font-bold leading-none text-amber"
               >
-                <motion.span
+                <m.span
                   key={streak}
                   initial={reduce ? false : { scale: 0.7 }}
                   animate={reduce ? {} : { scale: 1 }}
@@ -120,8 +120,8 @@ export default function PredictControl() {
                   className="inline-flex items-center gap-0.5"
                 >
                   <Flame size={11} />×{streak}
-                </motion.span>
-              </motion.span>
+                </m.span>
+              </m.span>
             )}
           </AnimatePresence>
         </span>
@@ -161,7 +161,7 @@ export default function PredictControl() {
                 (tinted by direction) and re-fired green when a call is won */}
             <AnimatePresence>
               {ring && !reduce && (
-                <motion.span
+                <m.span
                   key={ring.n}
                   initial={{ scale: 0.7, opacity: 0.8 }}
                   animate={{ scale: 2.3, opacity: 0 }}
@@ -174,7 +174,7 @@ export default function PredictControl() {
             </AnimatePresence>
             <span className="disc relative flex h-full w-full items-center justify-center rounded-full">
               <AnimatePresence mode="wait" initial={false}>
-                <motion.span
+                <m.span
                   key={discState}
                   initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -193,7 +193,7 @@ export default function PredictControl() {
                   ) : (
                     <Broadcast size={16} className="text-[#1a1a1f]" />
                   )}
-                </motion.span>
+                </m.span>
               </AnimatePresence>
             </span>
           </div>
@@ -205,7 +205,7 @@ export default function PredictControl() {
 
       {/* earn hint / verify */}
       {result ? (
-        <motion.div
+        <m.div
           initial={reduce ? { opacity: 0 } : { opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           transition={tweenFast}
@@ -213,27 +213,27 @@ export default function PredictControl() {
         >
           {result.outcome === "won" ? (
             <>
-              <motion.span
+              <m.span
                 initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.5 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={reduce ? tweenFast : springPop}
                 className="inline-flex"
               >
-                <Coin size={13} className="text-amber" />
-              </motion.span>
+                <img src="/proof-mark.png" alt="" className="h-auto w-[18px] shrink-0" />
+              </m.span>
               <CountUp value={result.reward} prefix="+" suffix=" $PROOF" className="tabular-nums text-grn" />
             </>
           ) : result.penalty > 0 ? (
             <>
-              <Coin size={13} className="text-mut" />
+              <img src="/proof-mark.png" alt="" className="h-auto w-[18px] shrink-0 opacity-70" />
               <CountUp value={result.penalty} prefix="−" suffix=" $PROOF" className="tabular-nums text-red" />
             </>
           ) : (
             <span className="text-mut">Not this time</span>
           )}
-        </motion.div>
+        </m.div>
       ) : locked && current?.memoSig ? (
-        <motion.a
+        <m.a
           href={current.verifyUrl}
           target="_blank"
           rel="noreferrer"
@@ -243,10 +243,10 @@ export default function PredictControl() {
           className="mt-2.5 flex items-center justify-center gap-1.5 text-[12px] font-medium text-ink2 hover:text-ink"
         >
           <ExternalLink size={13} /> Committed on-chain · verify on Solana
-        </motion.a>
+        </m.a>
       ) : (
         <div className="mt-2.5 flex items-center justify-center gap-1.5 text-[12px] font-medium text-mut">
-          <Coin size={13} className="text-amber" />
+          <img src="/proof-mark.png" alt="" className="h-auto w-[18px] shrink-0" />
           {locked
             ? `Locked at ${current?.lockedProb?.toFixed(0)}%`
             : open
@@ -280,7 +280,7 @@ function Half({
   const dirY = isUp ? -7 : 7;
 
   return (
-    <motion.button
+    <m.button
       onClick={onClick}
       disabled={disabled}
       whileTap={disabled ? undefined : { scale: 0.93 }}
@@ -293,7 +293,7 @@ function Half({
       {/* directional colored wash that floods the chosen side */}
       <AnimatePresence>
         {chosen && (
-          <motion.span
+          <m.span
             initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 1.15 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, transition: tweenFast }}
@@ -309,7 +309,7 @@ function Half({
       </AnimatePresence>
 
       {isUp && (
-        <motion.span
+        <m.span
           key={flashN}
           initial={flashN ? { y: 0, scale: 1 } : false}
           animate={reduce ? {} : flashN ? { y: [0, dirY, 0], scale: [1, 1.35, 1] } : { scale: 1 }}
@@ -317,13 +317,13 @@ function Half({
           className="relative"
         >
           <Arrow size={18} className={chosen ? "text-grn" : "text-bg"} />
-        </motion.span>
+        </m.span>
       )}
       <span className={`relative text-[15px] font-semibold ${chosen ? (isUp ? "text-grn" : "text-red") : "text-bg"}`}>
         {label}
       </span>
       {!isUp && (
-        <motion.span
+        <m.span
           key={flashN}
           initial={flashN ? { y: 0, scale: 1 } : false}
           animate={reduce ? {} : flashN ? { y: [0, dirY, 0], scale: [1, 1.35, 1] } : { scale: 1 }}
@@ -331,8 +331,8 @@ function Half({
           className="relative"
         >
           <Arrow size={18} className={chosen ? "text-red" : "text-bg"} />
-        </motion.span>
+        </m.span>
       )}
-    </motion.button>
+    </m.button>
   );
 }

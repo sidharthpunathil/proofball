@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { tweenFast } from "@/lib/motion";
 import { playSound } from "@/lib/sound";
 import { Sun, Moon } from "./Icons";
@@ -33,7 +33,7 @@ export default function ThemeToggle({ className = "" }: { className?: string }) 
   };
 
   return (
-    <motion.button
+    <m.button
       onClick={toggle}
       aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
       whileTap={reduce ? undefined : { scale: 0.9 }}
@@ -41,7 +41,7 @@ export default function ThemeToggle({ className = "" }: { className?: string }) 
       className={`relative flex h-8 w-8 items-center justify-center rounded-full border border-line bg-surface text-ink2 transition-colors hover:text-ink ${className}`}
     >
       <AnimatePresence initial={false}>
-        <motion.span
+        <m.span
           key={theme}
           initial={reduce ? { opacity: 0 } : { rotate: -90, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
@@ -50,8 +50,8 @@ export default function ThemeToggle({ className = "" }: { className?: string }) 
           className="absolute inset-0 flex items-center justify-center"
         >
           {mounted && theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-        </motion.span>
+        </m.span>
       </AnimatePresence>
-    </motion.button>
+    </m.button>
   );
 }

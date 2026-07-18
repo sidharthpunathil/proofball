@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import { tweenBase } from "@/lib/motion";
 import { Play } from "./Icons";
 
@@ -13,7 +13,7 @@ export default function MatchOver() {
   const reduce = useReducedMotion();
   return (
     <div className="px-4">
-      <motion.div
+      <m.div
         initial={reduce ? false : { opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={tweenBase}
@@ -24,9 +24,9 @@ export default function MatchOver() {
         </span>
         <p className="text-[12.5px] leading-[1.4]">
           <span className="font-semibold text-ink">You can play this on Solana devnet.</span>{" "}
-          <span className="text-ink2">The match already finished, so you&apos;re calling the replay , win calls to earn real devnet $PROOF.</span>
+          <span className="text-ink2">The match already finished, so you&apos;re calling the replay , win calls to earn $PROOF and cash out to your wallet.</span>
         </p>
-      </motion.div>
+      </m.div>
     </div>
   );
 }

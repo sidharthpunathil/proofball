@@ -38,6 +38,7 @@ export default function ShareButton({ pick }: { pick: Prediction }) {
 
   return (
     <button
+      type="button"
       onClick={share}
       className="flex items-center gap-1 rounded-md border border-line bg-subtle px-1.5 py-1 text-[10px] font-semibold text-ink2 transition-transform active:scale-[0.96] hover:text-ink"
       title="Share your call"

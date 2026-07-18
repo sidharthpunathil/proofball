@@ -13,6 +13,18 @@ For the product-level story and tokenomics narrative, see
 - You connect a Solana wallet. Your wallet address is who you are. No password.
 - The first time a wallet connects, we **airdrop it 1,000 $PROOF** so it can play
   right away. $PROOF is a real token on Solana devnet. You can see it in your wallet.
+- **$PROOF is the game — one number.** You play, spend, earn, and rank on the
+  leaderboard all in $PROOF. Your **playable balance** is an off-chain ledger (the
+  "arcade token" model): a call moves it instantly, with **no wallet signature and no
+  chain write**, so the loop is fast and free. A right call earns +50, a wrong one
+  costs 20.
+- **Move $PROOF both ways.** The Earn tab has a **Wallet ⇄ Game** card with two modes:
+  - **Cash out** (game → wallet): move any amount of your playable $PROOF **on-chain
+    into your own wallet** as real tokens (1:1). No signature — receiving never needs one.
+  - **Top up** (wallet → game): move real $PROOF from your wallet **into the game** to
+    play with. This one spends your own tokens, so it takes **one wallet signature** (a
+    real transfer), then the server verifies it on-chain and credits your playable balance.
+  Your on-chain wallet balance shows on the Profile and as the "in your wallet" receipt.
 - To make a call you pay a small **entry**: 5 $PROOF, or 0.0005 SOL. Paying in $PROOF
   is the cheaper path. Paying in SOL buys a bigger share of the pool.
 - Everyone's entries for a round go into one **pool**. When the round settles against
@@ -87,6 +99,32 @@ All numbers live in `lib/economy.ts` (`PROOF`), so the whole game retunes from o
 - The client fires this automatically inside `store.signIn` (see `lib/store.ts`). On the
   first airdrop the store sets `welcome`, which drives the `WelcomeToast` component
   ("We airdropped you 1,000 $PROOF").
+
+### The playable ledger and cashing out
+- **Playable $PROOF is off-chain.** It is `store.coins` (starts at `PROOF.start` = 1000),
+  persisted locally and mirrored to the shared Redis leaderboard. `settleMarket` moves it
+  on every call (`winReward` on a right call, `PROOF.stake` on a wrong one) with **no chain
+  write and no signature** — that is what makes the loop instant and free. The leaderboard
+  ranks by this number, and it is the single $PROOF figure shown in the header, the Earn
+  hero, and the predict control.
+- **Cashing out** (`store.cashOut` → `POST /api/swap`) is the one-way ledger→chain ramp: it
+  optimistically debits the playable ledger, then mints an equal amount of **real on-chain
+  $PROOF** into the wallet via the fee-payer mint authority (the same `mintProof` path as a
+  won call / the airdrop). If the mint fails, the ledger debit is rolled back. Config lives
+  in `PROOF.cashout` (`min` 50, `maxPerTx` 5000, the server clamp = `MAX_CASHOUT`); the route
+  clamps + rate-limits per wallet / IP / globally like `/api/reward/win`.
+- **Topping up** (`POST /api/topup`, the `Top up` mode of the wallet card) is the reverse ramp.
+  The client builds an SPL `transferChecked` of $PROOF from the player's wallet ATA into the
+  treasury ATA (`treasuryOwner()` = the fee-payer) and the **player signs it once** (a deposit
+  spends their own tokens, so a signature is unavoidable — this is the only signed step in the
+  app besides connecting). The route then **verifies the confirmed transaction on-chain** —
+  destination = treasury ATA, source owner = caller, mint = $PROOF — derives the amount **from
+  the chain** (never a client claim), guards double-credit with a one-shot signature set
+  (`SADD proofball:topups`, fail-closed), and returns `{ credited }`; the client credits the
+  playable ledger via `store.applyDeposit`. `GET /api/topup` returns the treasury/mint/min. This
+  direction is trust-minimised — the credit can only be as large as what actually landed on chain.
+- The gameplay loop no longer mints on every win (`mintWin` was removed); real $PROOF enters the
+  wallet only via the welcome airdrop and an explicit cash-out, and leaves it only via a top-up.
 
 ### The parimutuel pool
 - The payout math is a pure function, `settlePool(entries, outcome)` in `lib/pool.ts`,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { listContainer, listItem, springPop, tweenFast } from "@/lib/motion";
 import CoinBurst from "@/components/fx/CoinBurst";
@@ -75,10 +75,30 @@ export default function PickHistory({ limit = 20, showEmpty = false }: { limit?:
     ? { hidden: { opacity: 0 }, show: { opacity: 1, transition: tweenFast } }
     : listItem;
 
+  // Points earned from your calls: net $PROOF (wins add their reward, losses
+  // subtract the stake — the same P&L the score tracks) and the W–L record.
+  const settledWon = history.filter((p) => p.status === "won").length;
+  const settledLost = history.length - settledWon;
+  const netEarned = history.reduce((sum, p) => sum + (p.reward ?? 0), 0);
+
   return (
     <div className="px-4">
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-mut">Your calls</div>
-      <motion.div className="flex flex-col gap-1.5" variants={listContainer} initial="hidden" animate="show">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-mut">Your calls</span>
+        {history.length > 0 && (
+          <span className="flex items-center gap-2 text-[11.5px] font-semibold tabular-nums">
+            <span className={`inline-flex items-center gap-1 ${netEarned >= 0 ? "text-grn" : "text-red"}`}>
+              {netEarned >= 0 ? "+" : "−"}
+              {Math.abs(netEarned).toLocaleString()}
+              <img src="/proof-mark.png" alt="" className="h-auto w-[13px] shrink-0" /> $PROOF
+            </span>
+            <span className="text-mut">
+              {settledWon}W · {settledLost}L
+            </span>
+          </span>
+        )}
+      </div>
+      <m.div className="flex flex-col gap-1.5" variants={listContainer} initial="hidden" animate="show">
         {pending && (
           <div className="flex items-center gap-2.5 rounded-xl border border-grn/30 bg-surface px-3 py-2 text-[13px] shadow-soft">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-grnsoft">
@@ -96,7 +116,7 @@ export default function PickHistory({ limit = 20, showEmpty = false }: { limit?:
           // a celebratory overshoot on a win, a calm settle on a loss.
           const entrance = firstPaint || i !== 0 ? "" : won ? "animate-popwin" : "animate-poplose";
           return (
-            <motion.div
+            <m.div
               key={p.id}
               variants={firstPaint && i < STAGGER_CAP ? itemVariant : undefined}
               initial={firstPaint && i < STAGGER_CAP ? undefined : false}
@@ -117,14 +137,14 @@ export default function PickHistory({ limit = 20, showEmpty = false }: { limit?:
               <span className="ml-auto flex items-center gap-2">
                 {won && (
                   <span className="relative inline-flex items-center">
-                    <motion.span
+                    <m.span
                       className="tabular-nums font-semibold text-grn"
                       initial={reduce || i !== 0 ? false : { opacity: 0, scale: 0.7 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={reduce ? tweenFast : { ...springPop, delay: 0.06 }}
                     >
                       +{p.reward}
-                    </motion.span>
+                    </m.span>
                     {/* Tiny reward flourish over the +reward figure; fires only on a
                         fresh post-mount win (CoinBurst self-disables under reduced motion). */}
                     {!firstPaint && i === 0 && <CoinBurst fireKey={burstKey} count={3} size={10} />}
@@ -146,10 +166,10 @@ export default function PickHistory({ limit = 20, showEmpty = false }: { limit?:
                   </a>
                 )}
               </span>
-            </motion.div>
+            </m.div>
           );
         })}
-      </motion.div>
+      </m.div>
     </div>
   );
 }

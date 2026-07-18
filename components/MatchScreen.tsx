@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { m, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useStore } from "@/lib/store";
 import { tweenFast } from "@/lib/motion";
@@ -47,6 +47,14 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
   // render (no SSR mismatch); the stored preference is applied after mount.
   const [view, setView] = useState<ProbView>("percent");
   const [candleMin, setCandleMin] = useState(5);
+  // Replay playback speed for a finished match (1×–100×; 1× = real time).
+  // Changing it reconnects the stream at the new pace but RESUMES from the
+  // current minute (see the SSE effect), so the time + win-probability hold
+  // steady instead of snapping back to kick-off.
+  const [speed, setSpeed] = useState(1);
+  // Last fixture the SSE effect connected for, so it can tell a pure speed change
+  // (resume in place) from a real fixture load / switch (reset, start at 0').
+  const prevFixtureRef = useRef<string | null>(null);
   const reduce = useReducedMotion();
 
   useEffect(() => {
@@ -83,9 +91,25 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
   //    available for this fixture (live → recorded log → sample). Auth is
   //    attached server-side; the browser sends no headers.
   useEffect(() => {
-    useStore.getState().resetMatch();
-    const es = new EventSource(`/api/txline/stream?fixtureId=${fixture.id}`);
+    // Load persisted progress (your calls, coins, streak) from localStorage
+    // BEFORE any resetMatch() below. Effects run child-first, so this component's
+    // effect fires before the provider's rehydrate; without this, resetMatch()'s
+    // state write would persist an empty `history` over the stored calls, wiping
+    // "Your calls" on every load. Rehydrate is synchronous + idempotent.
+    void useStore.persist.rehydrate();
+
     const st = useStore.getState();
+    // A pure speed change RESUMES where the replay is: skip resetMatch (the score,
+    // minute, needle % and candle tape all hold) and tell the stream to seek past
+    // the minute already on screen (?from=). A first mount or a switch to a
+    // different fixture starts clean from kick-off (0').
+    const sameFixture = prevFixtureRef.current === fixture.id;
+    prevFixtureRef.current = fixture.id;
+    const from = sameFixture ? Math.max(0, st.minute) : 0;
+    if (!sameFixture) st.resetMatch();
+
+    const q = `fixtureId=${fixture.id}&speed=${speed}${from > 0 ? `&from=${from}` : ""}`;
+    const es = new EventSource(`/api/txline/stream?${q}`);
     es.onopen = () => st.setConnected(true);
     es.onmessage = (e) => {
       try {
@@ -96,7 +120,7 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
     };
     es.onerror = () => useStore.getState().setConnected(false);
     return () => es.close();
-  }, [fixture.id]);
+  }, [fixture.id, speed]);
 
   // 2) Prediction loop: open → lock (on-chain commit) → settle. Runs for finished
   //    matches too , there it drives the replay where correct calls mint devnet $PROOF.
@@ -129,7 +153,7 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
 
         <div className="pb-28">
           <AnimatePresence mode="wait">
-            <motion.div
+            <m.div
               key={tab}
               initial={reduce ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -139,6 +163,7 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
               {tab === "match" && (
                 <div className="flex flex-col gap-5">
                   <MatchHeader />
+                  {isFinished && <SpeedControl speed={speed} onSpeed={setSpeed} />}
                   <div className="px-4">
                     <div className="mb-3 flex justify-center">
                       <Segmented
@@ -151,7 +176,7 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
                       />
                     </div>
                     {view === "percent" ? (
-                      <motion.div
+                      <m.div
                         key="percent"
                         initial={reduce ? false : { opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -170,9 +195,9 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
                         <div className="mt-1">
                           <Sparkline data={history} />
                         </div>
-                      </motion.div>
+                      </m.div>
                     ) : (
-                      <motion.div
+                      <m.div
                         key="chart"
                         initial={reduce ? false : { opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -191,7 +216,7 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
                           onInterval={setCandleMin}
                           flashKey={flashKey}
                         />
-                      </motion.div>
+                      </m.div>
                     )}
                   </div>
                   {isFinished && <MatchOver />}
@@ -221,7 +246,7 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
               )}
 
               {tab === "profile" && <Profile />}
-            </motion.div>
+            </m.div>
           </AnimatePresence>
         </div>
 
@@ -231,6 +256,42 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
         <Celebration />
       </div>
     </FixtureProvider>
+  );
+}
+
+// A finished match replays from kick-off. 1× is REAL TIME , a 90' match takes 90
+// min, the way it moved live; the rest fast-forward it: 2× = 45 min, 5× = 18, 10×
+// = 9, 20× = 4.5, 50× = ~1.8, 100× = ~0.9 min. Selecting a speed reconnects the
+// stream but RESUMES from the current minute (SSE effect), so only the pace
+// changes , the time + win-probability stay put.
+const SPEEDS = [1, 2, 5, 10, 20, 50, 100] as const;
+
+function SpeedControl({ speed, onSpeed }: { speed: number; onSpeed: (n: number) => void }) {
+  // Seven options don't fit an inline label + pill row on a phone, so the label
+  // sits above and the pills flex to fill the width (each an equal share).
+  return (
+    <div className="flex flex-col items-center gap-1.5 px-4">
+      <span className="text-[10px] font-semibold uppercase tracking-[0.4px] text-mut">Replay speed</span>
+      <div className="flex w-full items-center gap-0.5 rounded-full border border-line bg-surface p-0.5 shadow-soft">
+        {SPEEDS.map((s) => {
+          const active = s === speed;
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => onSpeed(s)}
+              aria-pressed={active}
+              aria-label={`${s} times speed`}
+              className={`flex-1 rounded-full px-1 py-1 text-[12px] font-bold tabular-nums transition-colors ${
+                active ? "bg-ink text-bg" : "text-ink2 hover:text-ink"
+              }`}
+            >
+              {s}×
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -250,7 +311,7 @@ function Profile() {
   return (
     <div className="flex flex-col gap-4 px-4 pt-2">
       <div className="flex items-center gap-3 rounded-[22px] border border-line bg-surface p-4 shadow-soft">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-subtle text-ink2">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-subtle text-ink2">
           <User size={22} />
         </div>
         <div className="min-w-0">
@@ -278,12 +339,14 @@ function Profile() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/proofball-logo.png" alt="" className="h-11 w-11 rounded-2xl" />
           <div className="min-w-0 flex-1">
-            <div className="text-[12px] font-medium text-mut">Your $PROOF balance</div>
+            <div className="text-[12px] font-medium text-mut">In your wallet</div>
             <div className="mt-0.5 flex items-baseline gap-1.5">
               <span className="tabular-nums text-[26px] font-extrabold leading-none text-ink">
                 {proof.toLocaleString()}
               </span>
-              <span className="text-[13px] font-semibold text-mut">$PROOF</span>
+              <span className="flex items-center gap-1 text-[13px] font-semibold text-mut">
+                <img src="/proof-mark.png" alt="" className="h-auto w-[16px] shrink-0" /> $PROOF
+              </span>
             </div>
           </div>
           {user?.wallet && (
@@ -301,7 +364,8 @@ function Profile() {
           <div className="relative mt-3 flex items-center gap-2 rounded-xl bg-grnsoft px-3 py-2">
             <Gift size={13} className="shrink-0 text-grn" />
             <p className="text-[12px] leading-snug text-grn">
-              Includes your one-time welcome airdrop, free to play. Make a call to put it to work.
+              Your one-time welcome airdrop, real on-chain $PROOF. Play to earn more, then cash out to
+              your wallet from the Earn tab.
             </p>
           </div>
         )}
@@ -325,6 +389,7 @@ function Profile() {
 
       {user && (
         <button
+          type="button"
           onClick={() => void disconnect()}
           className="rounded-full border border-line bg-surface py-3 text-[14px] font-semibold text-red shadow-soft active:scale-[0.98] transition-transform"
         >

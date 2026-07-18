@@ -6,7 +6,7 @@ import { useStore } from "@/lib/store";
 import { springPop, tweenFast, EASE_BACK, DUR } from "@/lib/motion";
 import { PROOF } from "@/lib/economy";
 import CountUp from "@/components/fx/CountUp";
-import { Coin, ExternalLink } from "./Icons";
+import { ExternalLink, Close } from "./Icons";
 
 /**
  * One-shot toast for the welcome $PROOF airdrop. Driven by store.welcome:
@@ -66,6 +66,7 @@ export default function WelcomeToast() {
                   <ExternalLink size={15} />
                 </a>
               )}
+              <CloseButton onClick={dismiss} />
             </div>
           ) : (
             <div className="pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-2xl border border-amber/30 bg-surface px-4 py-3 shadow-card">
@@ -85,6 +86,7 @@ export default function WelcomeToast() {
               >
                 Retry
               </button>
+              <CloseButton onClick={dismiss} />
             </div>
           )}
         </m.div>
@@ -98,12 +100,26 @@ export default function WelcomeToast() {
  * matching the settlement badges. Never from scale(0): even the reduced-motion
  * fallback keeps the coin fully formed, it just skips the flourish.
  */
+/** A muted ✕ so the toast is always manually dismissible, not just on the timer. */
+function CloseButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Dismiss"
+      className="-mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-mut transition-transform active:scale-90"
+    >
+      <Close size={15} />
+    </button>
+  );
+}
+
 function CoinBadge({ tone, reduce }: { tone: "grn" | "amber"; reduce: boolean | null }) {
   const skin = tone === "grn" ? "bg-grnsoft text-grn" : "bg-amber/15 text-amber";
   return (
     <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${skin}`}>
       {reduce ? (
-        <Coin size={18} />
+        <img src="/proof-mark.png" alt="" className="h-auto w-[22px] shrink-0" />
       ) : (
         <m.span
           className="inline-flex"
@@ -111,7 +127,7 @@ function CoinBadge({ tone, reduce }: { tone: "grn" | "amber"; reduce: boolean | 
           animate={{ rotate: 0, scale: 1, opacity: 1 }}
           transition={{ duration: DUR.base, ease: EASE_BACK }}
         >
-          <Coin size={18} />
+          <img src="/proof-mark.png" alt="" className="h-auto w-[22px] shrink-0" />
         </m.span>
       )}
     </div>
