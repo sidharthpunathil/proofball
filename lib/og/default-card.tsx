@@ -1,12 +1,26 @@
 import { ImageResponse } from "next/og";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { SITE_NAME, SITE_TAGLINE, SITE_DESCRIPTION_SHORT } from "@/lib/site";
 
 /**
  * The default 1200×630 social card, used for the site's OpenGraph and Twitter
- * previews (app/opengraph-image.tsx + app/twitter-image.tsx). Pure CSS so it
- * renders fast with no bundled image; colours track the app's dark theme
- * (see app/globals.css). Per-result "I called it" cards live in /api/og.
+ * previews (app/opengraph-image.tsx + app/twitter-image.tsx). The brand mark is
+ * embedded as a data URI (Satori can't fetch relative paths); colours track the
+ * app's dark theme (see app/globals.css). Per-result "I called it" cards live
+ * in /api/og.
  */
+
+// The real √+ball mark (public/proof-mark.png, 215×169), loaded once per process.
+let markSrc: Promise<string> | null = null;
+function loadMark(): Promise<string> {
+  if (!markSrc) {
+    markSrc = readFile(join(process.cwd(), "public", "proof-mark.png")).then(
+      (buf) => `data:image/png;base64,${buf.toString("base64")}`,
+    );
+  }
+  return markSrc;
+}
 
 export const OG_SIZE = { width: 1200, height: 630 };
 export const OG_CONTENT_TYPE = "image/png";
@@ -20,7 +34,8 @@ const INK2 = "#a2a4ae";
 const GRN = "#2dd682";
 const LINE = "#262832";
 
-export function renderDefaultOgImage(): ImageResponse {
+export async function renderDefaultOgImage(): Promise<ImageResponse> {
+  const mark = await loadMark();
   return new ImageResponse(
     (
       <div
@@ -40,16 +55,8 @@ export function renderDefaultOgImage(): ImageResponse {
         {/* top row: brand + competition pill */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-            <div
-              style={{
-                display: "flex",
-                width: 64,
-                height: 64,
-                borderRadius: 20,
-                background: GRN,
-                boxShadow: "0 8px 30px rgba(45,214,130,0.35)",
-              }}
-            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={mark} width={81} height={64} alt="" />
             <div style={{ display: "flex", fontSize: 44, fontWeight: 800, letterSpacing: "-1px", color: INK }}>
               {SITE_NAME}
             </div>
