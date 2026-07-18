@@ -4,6 +4,7 @@
 # and the Docker data stores. Postgres/Redis data persists in named volumes.
 #
 #   ./stop.sh            # stop app + `docker compose down` (keep data)
+#   ./stop.sh --app-only # stop ONLY the app, leave Postgres + Redis running
 #   ./stop.sh --volumes  # also delete DB/Redis volumes for a fresh slate
 #
 set -euo pipefail
@@ -13,6 +14,19 @@ RUN_DIR=".run"
 APP_PID_FILE="$RUN_DIR/app.pid"
 
 log() { printf '\033[1;36m▸\033[0m %s\n' "$*"; }
+
+# Flags are order-independent. --app-only skips the Docker teardown entirely (so
+# ./restart.sh can bounce the server while Postgres + Redis stay warm).
+APP_ONLY=0
+VOLUMES=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --app-only) APP_ONLY=1 ;;
+    --volumes) VOLUMES=1 ;;
+    *) echo "Unknown option: $1" >&2; exit 2 ;;
+  esac
+  shift
+done
 
 # npm spawns `next` as a child, so signalling only the npm pid can orphan the
 # server. Walk the tree depth-first and signal every descendant.
@@ -42,9 +56,11 @@ else
   log "No app pidfile — server not tracked (skipping)."
 fi
 
-# 2. Data stores
-if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-  if [ "${1:-}" = "--volumes" ]; then
+# 2. Data stores (skipped entirely with --app-only, so a restart keeps them warm).
+if [ "$APP_ONLY" = "1" ]; then
+  log "Left Postgres + Redis running (--app-only)."
+elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  if [ "$VOLUMES" = "1" ]; then
     log "Stopping Postgres + Redis and deleting volumes (docker compose down -v)…"
     docker compose down -v
   else
