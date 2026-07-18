@@ -131,6 +131,24 @@ function DeskChrome() {
           </svg>
           Home
         </Link>
+        <Link className="device-howto" href="/how-it-works">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M15 14c.2-1 .7-1.7 1.5-2.5A5 5 0 1 0 8.5 11.5c.8.8 1.3 1.5 1.5 2.5" />
+            <path d="M9 18h6" />
+            <path d="M10 22h4" />
+          </svg>
+          How it works
+        </Link>
         <Link className="device-roadmap" href="/roadmap">
           <svg
             width="15"

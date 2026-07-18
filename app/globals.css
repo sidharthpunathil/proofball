@@ -701,7 +701,8 @@ body {
   }
   .device-lobby,
   .device-paper,
-  .device-roadmap {
+  .device-roadmap,
+  .device-howto {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -719,13 +720,15 @@ body {
   }
   .device-lobby:hover,
   .device-paper:hover,
-  .device-roadmap:hover {
+  .device-roadmap:hover,
+  .device-howto:hover {
     border-color: rgb(var(--line2));
     transform: translateY(-1px);
   }
   .device-lobby svg,
   .device-paper svg,
-  .device-roadmap svg {
+  .device-roadmap svg,
+  .device-howto svg {
     color: rgb(var(--mut));
   }
 

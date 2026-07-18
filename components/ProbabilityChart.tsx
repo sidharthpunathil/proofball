@@ -208,7 +208,16 @@ export default function ProbabilityChart({
                 strokeLinecap="round"
                 opacity={0.9}
               />
-              <circle cx={W - PR} cy={0} r={2.6} className={`${dotFill} animate-pulse2`} />
+              {/* fill-box: pulse2 scales via CSS transform, and SVG's default
+                  transform-box (view-box) would scale the dot's POSITION toward
+                  the origin, making it drift instead of pulse in place. */}
+              <circle
+                cx={W - PR}
+                cy={0}
+                r={2.6}
+                className={`${dotFill} animate-pulse2`}
+                style={{ transformBox: "fill-box", transformOrigin: "center" }}
+              />
               <g transform={`translate(${W - PR + 3}, 0)`}>
                 <rect x={0} y={-8.5} width={PR - 5} height={17} rx={4.5} className={tagFill} />
                 <text
