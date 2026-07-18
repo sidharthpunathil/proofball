@@ -7,9 +7,10 @@ import { springPop, tweenFast, DUR, EASE_OUT } from "@/lib/motion";
 import { Play, Expand, Close } from "./Icons";
 
 /**
- * The lobby's demo-video card: a branded facade that swaps to the Vimeo player
- * only on tap. The facade is pure local DOM, so visitors who never press play
- * load zero Vimeo JS; pressing play mounts the iframe with autoplay.
+ * The lobby's demo-video card: a poster facade (the ProofBall key art) that
+ * swaps to the Vimeo player only on tap. The facade is pure local DOM, so
+ * visitors who never press play load zero Vimeo JS; pressing play mounts the
+ * iframe with autoplay.
  *
  * The corner Expand button opens THEATER MODE: a near-fullscreen lightbox
  * player, since the inline card is deliberately small (max-w-md on desktop).
@@ -72,27 +73,32 @@ export default function DemoVideo() {
               }}
               exit={reduce ? { opacity: 0 } : { opacity: 0, transition: tweenFast }}
               className="group absolute inset-0 flex flex-col items-center justify-center gap-3"
-              style={{
-                background:
-                  "radial-gradient(120% 160% at 15% 0%, rgb(var(--grn) / 0.16), transparent 55%), radial-gradient(120% 160% at 100% 100%, rgb(var(--grn) / 0.08), transparent 60%)",
-              }}
               aria-label="Play the ProofBall demo video"
             >
+              {/* The key art is light in both themes, so the play chip and
+                  label carry their own dark frosted background (same recipe
+                  as the corner Expand chip) instead of theme tokens. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/proofball-logo.png"
+                src="/demo-poster.jpg"
                 alt=""
                 aria-hidden
-                className="pointer-events-none absolute left-4 top-4 h-8 w-8 rounded-[10px] opacity-90 shadow-soft"
+                className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+              />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent"
               />
               <m.span
                 whileTap={reduce ? undefined : { scale: 0.92 }}
                 transition={springPop}
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-ink text-bg shadow-btn transition-transform motion-safe:group-hover:scale-105"
+                className="relative flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white shadow-btn backdrop-blur-sm transition-transform motion-safe:group-hover:scale-105"
               >
                 <Play size={22} className="ml-0.5" />
               </m.span>
-              <span className="text-[13.5px] font-semibold text-ink">Watch the demo</span>
+              <span className="relative rounded-full border border-white/15 bg-black/55 px-3.5 py-1.5 text-[13px] font-semibold text-white backdrop-blur-sm">
+                Watch the demo
+              </span>
             </m.button>
           )}
         </AnimatePresence>
