@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { m, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { springPop, tweenFast, EASE_BACK, DUR } from "@/lib/motion";
 import { PROOF } from "@/lib/economy";
@@ -34,8 +34,12 @@ export default function WelcomeToast() {
   return (
     <AnimatePresence>
       {welcome && (
-        <motion.div
-          className="pointer-events-none fixed inset-x-0 top-3 z-[60] flex justify-center px-4"
+        <m.div
+          // top-3 on a real phone; at lg+ the app sits inside the device frame,
+          // whose 46px status bar + Dynamic Island (a sibling of the isolated
+          // .stage, so they paint OVER any z-index here) would clip the toast —
+          // drop it below them there. See the device-frame block in globals.css.
+          className="pointer-events-none fixed inset-x-0 top-3 lg:top-14 z-[60] flex justify-center px-4"
           initial={reduce ? { opacity: 0 } : { opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={reduce ? { opacity: 0 } : { opacity: 0, y: -20, transition: tweenFast }}
@@ -75,6 +79,7 @@ export default function WelcomeToast() {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={retry}
                 className="shrink-0 rounded-full bg-amber/15 px-3.5 py-1.5 text-[13px] font-semibold text-amber transition-transform active:scale-[0.96]"
               >
@@ -82,7 +87,7 @@ export default function WelcomeToast() {
               </button>
             </div>
           )}
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   );
@@ -100,14 +105,14 @@ function CoinBadge({ tone, reduce }: { tone: "grn" | "amber"; reduce: boolean | 
       {reduce ? (
         <Coin size={18} />
       ) : (
-        <motion.span
+        <m.span
           className="inline-flex"
           initial={{ rotate: -180, scale: 0.4, opacity: 0 }}
           animate={{ rotate: 0, scale: 1, opacity: 1 }}
           transition={{ duration: DUR.base, ease: EASE_BACK }}
         >
           <Coin size={18} />
-        </motion.span>
+        </m.span>
       )}
     </div>
   );
