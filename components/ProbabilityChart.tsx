@@ -31,14 +31,17 @@ const INTERVALS = [
 
 // Chart geometry (SVG user units; the svg itself is width:100%).
 const W = 300;
-const H = 118;
-const PT = 8; // top padding
+const H = 132; // taller than before so candles have real vertical room
+const PT = 10; // top padding
 const PB = 15; // bottom padding (minute labels)
 const PL = 3; // left padding
 const PR = 34; // right gutter for the live-price tag
 const PLOT_W = W - PL - PR;
 const PLOT_H = H - PT - PB;
 const MAX_CANDLES = 32; // visible window; older candles scroll off the left
+// Every candle draws at least this tall, so a flat/doji minute reads as a real
+// bar instead of collapsing to an invisible hairline dash on the price line.
+const MIN_BODY = 3.2;
 
 export default function ProbabilityChart({
   samples,
@@ -85,7 +88,19 @@ export default function ProbabilityChart({
   const y = (val: number) => PT + (1 - (val - min) / span) * PLOT_H;
   const slotW = n > 0 ? PLOT_W / n : PLOT_W;
   const cx = (i: number) => PL + slotW * (i + 0.5);
-  const bodyW = Math.max(2, Math.min(slotW * 0.58, 13));
+  // Wider, chunkier bodies: fill more of each slot (so a dense 1m tape reads as
+  // candles, not dots) and allow a fat cap so a sparse 15m tape fills its gaps.
+  const bodyW = Math.max(3, Math.min(slotW * 0.68, 18));
+
+  // Connecting thread through the candle closes, with a faint area beneath it.
+  // On a choppy/flat 1m tape the flat dojis otherwise read as disconnected
+  // floating dash-bands; joining their closes restores the trajectory so it
+  // reads as one continuous chart, with the candles as texture on top.
+  const bottomY = PT + PLOT_H;
+  const closePts = visible.map((c, i) => `${cx(i).toFixed(2)},${y(c.close).toFixed(2)}`);
+  const threadPath = closePts.join(" ");
+  const areaPath =
+    n > 0 ? `${cx(0).toFixed(2)},${bottomY} ${threadPath} ${cx(n - 1).toFixed(2)},${bottomY}` : "";
 
   // Glide the live-price line/tag to each new value (one springy value, never the
   // whole path, the same restraint as the sparkline, so ticks read calm, not jittery).
@@ -168,6 +183,13 @@ export default function ProbabilityChart({
       {/* Candlestick chart. */}
       <div className="relative mt-2">
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full overflow-visible" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="pbThreadArea" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" style={{ stopColor: "rgb(var(--ink2))", stopOpacity: 0.16 }} />
+              <stop offset="100%" style={{ stopColor: "rgb(var(--ink2))", stopOpacity: 0 }} />
+            </linearGradient>
+          </defs>
+
           {/* 50% coin-flip reference line. */}
           {show50 && (
             <line
@@ -180,6 +202,23 @@ export default function ProbabilityChart({
               strokeDasharray="1 4"
               strokeLinecap="round"
             />
+          )}
+
+          {/* Continuity thread: an area + line through the candle closes, so a
+              choppy/flat tape reads as one trajectory instead of floating dashes. */}
+          {hasSeries && n > 1 && (
+            <>
+              <polygon points={areaPath} fill="url(#pbThreadArea)" />
+              <polyline
+                points={threadPath}
+                fill="none"
+                className="stroke-ink2"
+                strokeWidth={1.4}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                opacity={0.55}
+              />
+            </>
           )}
 
           {/* Candles. Keyed by interval so a timeframe switch replays the staggered
@@ -206,7 +245,7 @@ export default function ProbabilityChart({
                 strokeWidth={1}
                 strokeDasharray="2 3"
                 strokeLinecap="round"
-                opacity={0.9}
+                opacity={0.5}
               />
               {/* fill-box: pulse2 scales via CSS transform, and SVG's default
                   transform-box (view-box) would scale the dot's POSITION toward
@@ -305,9 +344,16 @@ function CandleMark({
   // Literal class strings (not `stroke-${color}`) so Tailwind's JIT emits them.
   const wickClass = c.up ? "stroke-grn" : "stroke-red";
   const bodyClass = c.up ? "fill-grn" : "fill-red";
-  const top = y(Math.max(c.open, c.close));
-  const bottom = y(Math.min(c.open, c.close));
-  const bodyH = Math.max(1.5, bottom - top);
+  // Body spans open ↔ close, but never thinner than MIN_BODY: a flat minute keeps
+  // a solid bar (centred on the true open/close midpoint) rather than vanishing.
+  const openY = y(c.open);
+  const closeY = y(c.close);
+  let top = Math.min(openY, closeY);
+  let bodyH = Math.abs(closeY - openY);
+  if (bodyH < MIN_BODY) {
+    top = (openY + closeY) / 2 - MIN_BODY / 2;
+    bodyH = MIN_BODY;
+  }
   return (
     <m.g
       variants={variants}
@@ -320,9 +366,9 @@ function CandleMark({
         y1={y(c.high)}
         y2={y(c.low)}
         className={wickClass}
-        strokeWidth={1.2}
+        strokeWidth={1.6}
         strokeLinecap="round"
-        opacity={0.75}
+        opacity={0.95}
       />
       {/* body: open ↔ close */}
       <rect
@@ -330,9 +376,9 @@ function CandleMark({
         y={top}
         width={bodyW}
         height={bodyH}
-        rx={1.2}
+        rx={1.5}
         className={bodyClass}
-        opacity={0.95}
+        opacity={1}
       />
     </m.g>
   );

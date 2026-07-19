@@ -21,7 +21,7 @@ export interface Candle {
   high: number;
   low: number;
   close: number;
-  up: boolean; // close >= open (green), else down (red)
+  up: boolean; // green when the body rises (or a flat doji sits at/above the prior close), else red
 }
 
 /**
@@ -60,7 +60,23 @@ export function toCandles(samples: Sample[], interval: number): Candle[] {
   }
 
   const candles = [...byBucket.values()].sort((a, b) => a.bucket - b.bucket);
-  for (const c of candles) c.up = c.close >= c.open;
+  // Direction/colour: a candle with a real body goes by close vs open. A flat
+  // doji minute (common on the 1m tape, where a bucket often holds a single
+  // reading so open == close) has no body of its own, so it follows the trend:
+  // close vs the PREVIOUS candle's close. Without this, every flat bar defaults
+  // to green and a plainly falling market renders as a green staircase.
+  let prevClose: number | null = null;
+  for (const c of candles) {
+    c.up =
+      c.close > c.open
+        ? true
+        : c.close < c.open
+          ? false
+          : prevClose === null
+            ? true
+            : c.close >= prevClose;
+    prevClose = c.close;
+  }
   return candles;
 }
 
@@ -69,7 +85,7 @@ export function toCandles(samples: Sample[], interval: number): Candle[] {
  * span so a tight, barely-moving match still renders bars with real height
  * instead of a flat line. Clamped to the valid probability range [0, 100].
  */
-export function priceDomain(candles: Candle[], pad = 6, minSpan = 14): { min: number; max: number } {
+export function priceDomain(candles: Candle[], pad = 5, minSpan = 11): { min: number; max: number } {
   if (candles.length === 0) return { min: 40, max: 60 };
   let lo = Infinity;
   let hi = -Infinity;
