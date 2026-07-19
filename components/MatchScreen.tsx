@@ -8,6 +8,7 @@ import { tweenFast } from "@/lib/motion";
 import { FixtureProvider } from "@/lib/fixture-context";
 import type { FixtureView } from "@/lib/types";
 import AppHeader from "./AppHeader";
+import DevnetNotice from "./DevnetNotice";
 import MatchHeader from "./MatchHeader";
 import ProbabilityNeedle from "./ProbabilityNeedle";
 import ProbabilityChart from "./ProbabilityChart";
@@ -63,6 +64,11 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
       if (v === "percent" || v === "chart") setView(v);
       const iv = Number(localStorage.getItem("pb:candleMin"));
       if ([1, 5, 15].includes(iv)) setCandleMin(iv);
+      // Deep-linkable replay pace: /match/<id>?speed=5 starts a finished replay
+      // fast-forwarded (?from=<minute> seeks, see the SSE effect). Applied after
+      // mount like the stored preferences so the first render stays SSR-constant.
+      const sp = Number(new URLSearchParams(window.location.search).get("speed"));
+      if ((SPEEDS as readonly number[]).includes(sp)) setSpeed(sp);
     } catch {
       /* preference is best-effort */
     }
@@ -105,7 +111,13 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
     // different fixture starts clean from kick-off (0').
     const sameFixture = prevFixtureRef.current === fixture.id;
     prevFixtureRef.current = fixture.id;
-    const from = sameFixture ? Math.max(0, st.minute) : 0;
+    // ?from=<minute> deep-links a moment of a finished replay. It also floors the
+    // speed-change resume: the URL-applied speed reconnects before the first clock
+    // frame lands, so st.minute alone would snap back to kick-off.
+    const urlFrom = isFinished
+      ? Math.max(0, Math.round(Number(new URLSearchParams(window.location.search).get("from")) || 0))
+      : 0;
+    const from = Math.max(sameFixture ? Math.max(0, st.minute) : 0, urlFrom);
     if (!sameFixture) st.resetMatch();
 
     const q = `fixtureId=${fixture.id}&speed=${speed}${from > 0 ? `&from=${from}` : ""}`;
@@ -150,6 +162,7 @@ export default function MatchScreen({ fixture }: { fixture: FixtureView }) {
     <FixtureProvider value={fixture}>
       <div className="relative mx-auto min-h-screen w-full max-w-md">
         <AppHeader />
+        <DevnetNotice />
 
         <div className="pb-28">
           <AnimatePresence mode="wait">

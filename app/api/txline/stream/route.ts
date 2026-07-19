@@ -116,6 +116,23 @@ export async function GET(req: Request) {
         if (from > 0) {
           const i = paced.findIndex((f) => f.data.kind === "clock" && f.data.minute > from);
           skipFirst = i >= 0 ? i : paced.length - 1;
+          // A fresh deep-link (?from= on first load) has no earlier client state,
+          // and the real log is sparse: the next score event can be many minutes
+          // away, leaving the score at 0-0 mid-match. Re-seed the running score
+          // by forwarding the last score frame before the seek point. (On a
+          // speed-change resume this is an idempotent re-ingest.)
+          const seed = paced
+            .slice(0, skipFirst)
+            .reverse()
+            .find((f) => f.data.kind === "score");
+          if (seed) {
+            // Zero the first post-seek gap too: seeking already "spent" that
+            // wait, and keeping it would stall the clock a full pacing gap
+            // behind the baseline no-seed timing.
+            const rest = paced.slice(skipFirst);
+            if (rest.length > 0) rest[0] = { ...rest[0], delay: 0 };
+            return replay(req, [{ delay: 0, data: seed.data }, ...rest]);
+          }
         }
         return replay(req, paced, skipFirst);
       }
