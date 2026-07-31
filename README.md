@@ -13,10 +13,6 @@ A second-screen game for the World Cup built on the real **TxLINE (TxOdds)** dat
 [![TxLINE Data](https://img.shields.io/badge/data-TxLINE-0a7f5b)](https://proofball.xyz/how-it-works)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org)
 
-<a href="https://proofball.xyz">
-  <img src="public/readme-hero.png" alt="ProofBall — call the live win-probability of the World Cup final" width="100%" />
-</a>
-
 ---
 
 ## Why ProofBall?
