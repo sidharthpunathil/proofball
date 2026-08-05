@@ -9,29 +9,77 @@ import Redis from "ioredis";
  *     the rate-limited devnet feed.
  *
  * Everything degrades gracefully: if Redis is down, `getRedis()` still returns a
- * client but commands fail fast (offline queue disabled) and every caller wraps
- * them in try/catch, falling back to in-memory / seed data.
+ * client but commands fail fast and every caller wraps them in try/catch,
+ * falling back to in-memory / seed data.
+ *
+ * The client HANGS UP WHEN IDLE, and that is load-bearing for hosting cost.
+ * Railway's Serverless mode only stops a service after ~10 minutes with no
+ * OUTBOUND packets, and a parked Redis socket silently defeats that: Redis ships
+ * `tcp-keepalive 300`, so the server probes an idle client every 5 minutes and
+ * the client's kernel ACKs — an outbound packet that re-arms the idle timer
+ * forever. One connection therefore pins the whole app awake 24/7, which was the
+ * single largest line item on this project's bill. So the socket is dropped after
+ * a quiet spell and re-dialled on the next command.
  */
 
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:63799";
 
-const g = globalThis as unknown as { _proofballRedis?: Redis | null };
+/** Quiet period before the socket is dropped. 0 disables the hang-up entirely. */
+const IDLE_HANGUP_MS = Number(process.env.REDIS_IDLE_HANGUP_MS ?? 45_000);
+
+const g = globalThis as unknown as {
+  _proofballRedis?: Redis | null;
+  _proofballRedisIdle?: ReturnType<typeof setTimeout>;
+};
+
+/**
+ * (Re)start the countdown to hanging up. Called on every `getRedis()`, which is
+ * every call site's first step, so it tracks real usage closely enough.
+ */
+function armIdleHangup(client: Redis): void {
+  if (g._proofballRedisIdle) clearTimeout(g._proofballRedisIdle);
+  g._proofballRedisIdle = undefined;
+  if (!(IDLE_HANGUP_MS > 0)) return;
+  const timer = setTimeout(() => {
+    g._proofballRedisIdle = undefined;
+    // "wait" = lazyConnect, never dialled; "end" = already hung up. Anything else
+    // owns a socket (or is retrying over one), and retries are outbound too.
+    if (client.status !== "end" && client.status !== "wait") client.disconnect();
+  }, IDLE_HANGUP_MS);
+  timer.unref?.(); // a pending timer must never be the thing keeping Node alive
+  g._proofballRedisIdle = timer;
+}
 
 export function getRedis(): Redis | null {
-  if (g._proofballRedis !== undefined) return g._proofballRedis;
-  try {
-    const client = new Redis(REDIS_URL, {
-      maxRetriesPerRequest: 1,
-      enableOfflineQueue: false, // fail fast when disconnected → callers fall back
-      connectTimeout: 2000,
-      retryStrategy: (times) => (times > 8 ? null : Math.min(times * 200, 2000)),
-    });
-    client.on("error", () => {}); // swallow transient connection noise
-    g._proofballRedis = client;
-  } catch {
-    g._proofballRedis = null;
+  if (g._proofballRedis === null) return null; // construction already failed once
+  let client = g._proofballRedis;
+  if (!client) {
+    try {
+      client = new Redis(REDIS_URL, {
+        maxRetriesPerRequest: 1, // a REAL outage still fails fast, not after 20 tries
+        // ON, specifically BECAUSE we hang up when idle: a command issued while the
+        // socket is down has to WAIT for the redial rather than fail. Routes that
+        // fail CLOSED on a Redis error (SIWS nonce, top-up idempotency, airdrop
+        // claim) would otherwise 503 purely because the app had been sitting quiet.
+        enableOfflineQueue: true,
+        lazyConnect: true, // don't dial until something actually needs Redis
+        connectTimeout: 2000,
+        retryStrategy: (times) => (times > 8 ? null : Math.min(times * 200, 2000)),
+      });
+      client.on("error", () => {}); // swallow transient connection noise
+      g._proofballRedis = client;
+    } catch {
+      g._proofballRedis = null;
+      return null;
+    }
   }
-  return g._proofballRedis;
+  // "end" is where our own hang-up leaves the client (and where retryStrategy
+  // lands after giving up). ioredis will not redial from there on its own, so do
+  // it here; the offline queue holds this caller's command until the socket is up.
+  // From "wait" ioredis dials itself on the first command.
+  if (client.status === "end") void client.connect().catch(() => {});
+  armIdleHangup(client);
+  return client;
 }
 
 /** JSON cache read; returns null on miss / any error. */
