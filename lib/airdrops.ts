@@ -9,11 +9,9 @@
  * (`srem`), which is exactly what let a wallet be airdropped twice when a mint timed
  * out on confirmation but still landed on-chain. This ledger is append/update-only.
  *
- * Stored as a Redis HASH: field = wallet, value = JSON(AirdropRecord).
+ * Stored in the D1 `airdrops` table: one row per wallet, record = JSON(AirdropRecord).
  */
-import { getRedis } from "./redis";
-
-export const AIRDROP_LEDGER_KEY = "proofball:airdrops";
+import { getDb } from "./d1";
 
 export type AirdropStatus =
   | "airdropped" // minted this session, confirmed
@@ -33,22 +31,31 @@ export interface AirdropRecord {
 
 /** Durably record (or update) a wallet's airdrop. Best-effort; never throws. */
 export async function recordAirdrop(rec: AirdropRecord): Promise<void> {
-  const r = getRedis();
-  if (!r) return;
+  const db = getDb();
+  if (!db) return;
   try {
-    await r.hset(AIRDROP_LEDGER_KEY, rec.wallet, JSON.stringify(rec));
+    await db
+      .prepare(
+        `INSERT INTO airdrops (wallet, record, ts) VALUES (?1, ?2, ?3)
+         ON CONFLICT (wallet) DO UPDATE SET record = excluded.record, ts = excluded.ts`,
+      )
+      .bind(rec.wallet, JSON.stringify(rec), rec.ts ?? Date.now())
+      .run();
   } catch {
     /* the ledger is best-effort — a write failure must never break the airdrop */
   }
 }
 
-/** One wallet's airdrop record, or null if it has none / Redis is down. */
+/** One wallet's airdrop record, or null if it has none / the database is down. */
 export async function getAirdropRecord(wallet: string): Promise<AirdropRecord | null> {
-  const r = getRedis();
-  if (!r) return null;
+  const db = getDb();
+  if (!db) return null;
   try {
-    const raw = await r.hget(AIRDROP_LEDGER_KEY, wallet);
-    return raw ? (JSON.parse(raw) as AirdropRecord) : null;
+    const row = await db
+      .prepare("SELECT record FROM airdrops WHERE wallet = ?1")
+      .bind(wallet)
+      .first<{ record: string }>();
+    return row ? (JSON.parse(row.record) as AirdropRecord) : null;
   } catch {
     return null;
   }
@@ -56,21 +63,21 @@ export async function getAirdropRecord(wallet: string): Promise<AirdropRecord | 
 
 /** The full ledger (all wallets), newest first. Empty on any error. */
 export async function listAirdrops(): Promise<AirdropRecord[]> {
-  const r = getRedis();
-  if (!r) return [];
+  const db = getDb();
+  if (!db) return [];
   try {
-    const all = await r.hgetall(AIRDROP_LEDGER_KEY);
-    const recs = Object.values(all)
-      .map((v) => {
+    const { results } = await db
+      .prepare("SELECT record FROM airdrops ORDER BY ts DESC")
+      .all<{ record: string }>();
+    return results
+      .map((r) => {
         try {
-          return JSON.parse(v) as AirdropRecord;
+          return JSON.parse(r.record) as AirdropRecord;
         } catch {
           return null;
         }
       })
       .filter((x): x is AirdropRecord => x !== null);
-    recs.sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0));
-    return recs;
   } catch {
     return [];
   }

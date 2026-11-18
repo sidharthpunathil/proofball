@@ -17,10 +17,16 @@
     "matches:warm": "node --env-file=.env scripts/warm-replays.mjs",
     "token:create": "node --env-file=.env scripts/create-token.ts",
     "token:metadata": "node --env-file=.env scripts/set-token-metadata.ts",
-    "airdrops": "node --env-file=.env scripts/airdrops.ts"
+    "airdrops": "node scripts/airdrops.ts",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "db:migrate": "wrangler d1 migrations apply proofball --remote",
+    "db:migrate:local": "wrangler d1 migrations apply proofball --local"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",
+    "@opennextjs/cloudflare": "^1.20.17",
     "@solana-program/memo": "^0.10.0",
     "@solana/spl-token": "^0.4.15",
     "@solana/wallet-adapter-base": "^0.9.27",
@@ -28,10 +34,8 @@
     "@solana/web3.js": "^1.98.4",
     "bs58": "^6.0.0",
     "framer-motion": "^12.42.2",
-    "ioredis": "^5.11.1",
     "lucide-react": "^1.24.0",
     "next": "^15.1.0",
-    "pg": "^8.22.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -39,18 +43,19 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261118.1",
     "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
     "@metaplex-foundation/umi": "^1.5.1",
     "@metaplex-foundation/umi-bundle-defaults": "^1.5.1",
     "@metaplex-foundation/umi-uploader-irys": "^1.5.0",
     "@types/node": "^20.17.0",
-    "@types/pg": "^8.20.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3",
-    "vitest": "^3.2.7"
+    "vitest": "^3.2.7",
+    "wrangler": "^4.164.0"
   }
 }

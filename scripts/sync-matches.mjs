@@ -1,8 +1,8 @@
 /**
- * Sync the TxLINE World Cup feed's FINISHED matches into Postgres.
+ * Sync the TxLINE World Cup feed's FINISHED matches into D1.
  *
- *   docker compose up -d          # Postgres on :55432
- *   npm run matches:sync          # this script
+ *   npm run matches:sync          # writes to the remote D1 database
+ *   D1_LOCAL=1 npm run matches:sync   # writes to the local dev database
  *
  * What it does:
  *   1. Pulls the full competition-72 fixture directory (teams + kickoff times).
@@ -14,13 +14,12 @@
  * Group-stage fixtures carry no score data on the devnet feed, so they are
  * skipped , we never invent a scoreline. Re-runnable (idempotent upsert).
  */
-import pg from "pg";
+import { d1ExecSql, lit } from "./d1.mjs";
 
 const ORIGIN = (process.env.TXLINE_API_BASE || "https://txline-dev.txodds.com/api").replace(/\/api\/?$/, "");
 const API_BASE = process.env.TXLINE_API_BASE || "https://txline-dev.txodds.com/api";
 const TOKEN = process.env.TXLINE_API_TOKEN?.trim();
 const COMP = process.env.WORLDCUP_COMPETITION_ID || "72";
-const DATABASE_URL = process.env.DATABASE_URL || "postgresql://proofball:proofball@localhost:55432/proofball";
 
 // Knockout fixture ids are all >= this; group-stage ids are below it.
 const KNOCKOUT_MIN_ID = 18000000;
@@ -34,23 +33,6 @@ const BRACKET = [
   { round: "Final", rank: 6, count: 1 },
 ];
 
-const DDL = `
-CREATE TABLE IF NOT EXISTS matches (
-  fixture_id  TEXT PRIMARY KEY,
-  competition TEXT   NOT NULL DEFAULT 'World Cup',
-  round       TEXT   NOT NULL,
-  round_rank  INT    NOT NULL,
-  home_name   TEXT   NOT NULL,
-  home_id     INT,
-  away_name   TEXT   NOT NULL,
-  away_id     INT,
-  start_time  BIGINT NOT NULL,
-  score_h     INT,
-  score_a     INT,
-  winner      TEXT,
-  finished    BOOLEAN NOT NULL DEFAULT TRUE,
-  synced_at   BIGINT NOT NULL
-);`;
 
 const numOr = (v, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 
@@ -172,29 +154,25 @@ async function main() {
     for (const m of list) console.log(`     ${m.p1} ${m.scoreH}-${m.scoreA} ${m.p2}`);
   }
 
-  console.log("→ writing to Postgres…");
-  const pool = new pg.Pool({ connectionString: DATABASE_URL, max: 4 });
-  await pool.query(DDL);
+  console.log("→ writing to D1…");
   const now = Date.now();
-  let n = 0;
-  for (const m of finished) {
-    await pool.query(
-      `INSERT INTO matches
-         (fixture_id, competition, round, round_rank, home_name, home_id,
-          away_name, away_id, start_time, score_h, score_a, winner, finished, synced_at)
-       VALUES ($1,'World Cup',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,TRUE,$12)
-       ON CONFLICT (fixture_id) DO UPDATE SET
-         round=EXCLUDED.round, round_rank=EXCLUDED.round_rank,
-         home_name=EXCLUDED.home_name, away_name=EXCLUDED.away_name,
-         start_time=EXCLUDED.start_time, score_h=EXCLUDED.score_h,
-         score_a=EXCLUDED.score_a, winner=EXCLUDED.winner,
-         finished=TRUE, synced_at=EXCLUDED.synced_at`,
-      [m.id, m.round, m.rank, m.p1, m.p1Id, m.p2, m.p2Id, m.startTime, m.scoreH, m.scoreA, m.winner, now]
-    );
-    n++;
-  }
-  await pool.end();
-  console.log(`✓ synced ${n} finished matches into Postgres.`);
+  const sql = finished
+    .map(
+      (m) => `INSERT INTO matches
+  (fixture_id, competition, round, round_rank, home_name, home_id,
+   away_name, away_id, start_time, score_h, score_a, winner, finished, synced_at)
+VALUES (${[m.id, "World Cup", m.round, m.rank, m.p1, m.p1Id, m.p2, m.p2Id, m.startTime, m.scoreH, m.scoreA, m.winner].map(lit).join(", ")}, 1, ${now})
+ON CONFLICT (fixture_id) DO UPDATE SET
+  round=excluded.round, round_rank=excluded.round_rank,
+  home_name=excluded.home_name, away_name=excluded.away_name,
+  start_time=excluded.start_time, score_h=excluded.score_h,
+  score_a=excluded.score_a, winner=excluded.winner,
+  finished=1, synced_at=excluded.synced_at;`,
+    )
+    .join("\n");
+  if (sql) d1ExecSql(sql);
+  const n = finished.length;
+  console.log(`✓ synced ${n} finished matches into D1.`);
 }
 
 main().catch((e) => { console.error("sync failed:", e.message); process.exit(1); });

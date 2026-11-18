@@ -1,6 +1,5 @@
 import { ImageResponse } from "next/og";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { publicFileDataUri } from "@/lib/static-asset";
 import { SITE_NAME, SITE_TAGLINE, SITE_DESCRIPTION_SHORT } from "@/lib/site";
 
 /**
@@ -15,9 +14,10 @@ import { SITE_NAME, SITE_TAGLINE, SITE_DESCRIPTION_SHORT } from "@/lib/site";
 let markSrc: Promise<string> | null = null;
 function loadMark(): Promise<string> {
   if (!markSrc) {
-    markSrc = readFile(join(process.cwd(), "public", "proof-mark.png")).then(
-      (buf) => `data:image/png;base64,${buf.toString("base64")}`,
-    );
+    markSrc = publicFileDataUri("proof-mark.png").catch((e) => {
+      markSrc = null; // retry on the next render instead of caching the failure
+      throw e;
+    });
   }
   return markSrc;
 }

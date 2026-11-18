@@ -1,5 +1,0 @@
-# Use lenient `npm install` (not `npm ci`) so the build tolerates minor
-# package-lock drift and resolves React 19 peer deps. Build + start are
-# auto-detected (npm run build / npm run start).
-[phases.install]
-cmds = ["npm install --no-audit --no-fund --legacy-peer-deps"]

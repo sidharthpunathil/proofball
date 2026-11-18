@@ -1,6 +1,5 @@
 import { ImageResponse } from "next/og";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { publicFileDataUri } from "@/lib/static-asset";
 
 export const runtime = "nodejs";
 
@@ -18,12 +17,14 @@ let assets: Promise<{ logo: string; mark: string }> | null = null;
 function loadAssets() {
   if (!assets) {
     assets = Promise.all([
-      readFile(join(process.cwd(), "public", "proofball-logo.png")),
-      readFile(join(process.cwd(), "public", "proof-mark.png")),
-    ]).then(([logo, mark]) => ({
-      logo: `data:image/png;base64,${logo.toString("base64")}`,
-      mark: `data:image/png;base64,${mark.toString("base64")}`,
-    }));
+      publicFileDataUri("proofball-logo.png"),
+      publicFileDataUri("proof-mark.png"),
+    ])
+      .then(([logo, mark]) => ({ logo, mark }))
+      .catch((e) => {
+        assets = null; // retry on the next request instead of caching the failure
+        throw e;
+      });
   }
   return assets;
 }

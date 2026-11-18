@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { submitScore, topLeaders, getUserScore } from "@/lib/leaderboard";
-import { rateLimit, clientIp } from "@/lib/redis";
+import { rateLimit, clientIp } from "@/lib/kv";
 import { resolveWallet, authRequired } from "@/lib/auth";
 
 export const runtime = "nodejs";

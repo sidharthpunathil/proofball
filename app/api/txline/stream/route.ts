@@ -9,7 +9,7 @@ import {
 } from "@/lib/txline-fixtures";
 import { getCredentials } from "@/lib/txline-auth";
 import { openLiveStream } from "@/lib/txline-live";
-import { cacheGetJSON, cacheSetJSON } from "@/lib/redis";
+import { cacheGetJSON, cacheSetJSON } from "@/lib/kv";
 import type { Frame } from "@/lib/types";
 
 export const dynamic = "force-dynamic";

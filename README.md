@@ -34,7 +34,7 @@ A second-screen game for the World Cup built on the real **TxLINE (TxOdds)** dat
 | **Call the momentum** | Predict which way the needle swings; calls are pooled parimutuel and committed on-chain (Solana memo) as a provably-fair anchor |
 | **$PROOF token economy** | Real devnet SPL token; welcome airdrop of 1,000 $PROOF with an auditable ledger |
 | **30 real finished matches** | The full knockout bracket with real scores and event timelines, replayable at `?speed=` 1/2/5/10× |
-| **Global leaderboard** | Redis-backed, shared across all players; calls persist per wallet with the match minute |
+| **Global leaderboard** | Stored in D1 and shared across all players; calls persist per wallet with the match minute |
 | **Desktop and mobile wallets** | Phantom / Solflare / Backpack via Wallet Standard, MWA on Android, deeplinks on iOS |
 | **Shareable moments** | OG earnings cards (`/api/og`) and `/call` unfurl permalinks |
 | **Feels alive** | Zero-asset Web Audio sound engine, framer-motion micro-interactions, light and dark themes |
@@ -72,13 +72,13 @@ The whole knockout bracket is served — **30 finished matches** (Round of 32 �
 
 ```bash
 npm install
-docker compose up -d   # Postgres (:55432) + Redis (:63799)
-npm run matches:sync   # populate the finished-match cache from the live TxLINE feed
-npm run dev            # http://localhost:3000
+npm run db:migrate:local           # create the local D1 schema (.wrangler/state)
+D1_LOCAL=1 npm run matches:sync    # fill the finished-match cache from the live TxLINE feed
+npm run dev                        # http://localhost:3000
 ```
 
 > [!IMPORTANT]
-> To serve **real** TxLINE data, set `TXLINE_API_TOKEN` (obtained via `npm run txline:auth`) in `.env.local`. See [`.env.example`](./.env.example) for every variable. Without `docker compose` the app degrades gracefully — nothing hard-crashes when a store is down.
+> To serve **real** TxLINE data, set `TXLINE_API_TOKEN` (obtained via `npm run txline:auth`) in `.env.local`. See [`.env.example`](./.env.example) for every variable. If the database is missing or empty, the app falls back to built-in data, so nothing crashes.
 
 ---
 
@@ -98,10 +98,12 @@ For the plain-words version with animated charts, see [`/how-it-works`](https://
 
 | What | Where | Why |
 |------|-------|-----|
-| Finished-match **results** | **Postgres** (`:55432`), table `matches` | Immutable results, cached once |
-| Player **calls** | **Postgres**, table `picks` via `/api/picks` | Per-wallet history that survives any device |
-| **Points** + global **leaderboard** | **Redis** (`:63799`), ZSET | Shared across all users, restored on sign-in |
-| Shared **feed cache** | **Redis** (60s fixtures + durable replays) | One upstream fetch of the rate-limited feed |
+| Finished-match **results** | **D1**, table `matches` | Immutable results, cached once |
+| Player **calls** | **D1**, table `picks` via `/api/picks` | Per-wallet history that survives any device |
+| **Points** + global **leaderboard** | **D1**, table `leaderboard` | Shared across all users, restored on sign-in |
+| **Airdrop** ledger, top-ups, rate limits, sign-in nonces | **D1** (`airdrops`, `airdrop_claims`, `topups`, `rate_limits`, `kv`) | Each check-and-write is one atomic statement or batch |
+| Shared **feed cache** | **D1**, table `kv` (60s fixtures + durable replays) | One upstream fetch of the rate-limited feed |
+| **Whitepaper** PDF | **R2** bucket `proofball-assets`, served at `/whitepaper` | Large static file kept out of the Worker bundle |
 | Live **replay view** | Browser (zustand), ephemeral | It's just the view of the streamed replay |
 | Prediction **commitment** | **Solana** memo via `/api/predict/lock` | Provably-fair anchor |
 
@@ -117,8 +119,9 @@ proofball/
 ├── lib/                  # zustand store, TxLINE clients, $PROOF economy, pool math, sound engine
 ├── scripts/              # Token creation, TxLINE auth, match sync/warm, airdrop ledger
 ├── docs/                 # DATA, EARN, FLOW, WHITEPAPER, SECURITY-AUDIT
+├── migrations/           # D1 schema (wrangler d1 migrations)
 ├── tests/                # Vitest suite (pool settlement math)
-└── docker-compose.yml    # Postgres + Redis on deliberately odd ports (55432 / 63799)
+└── wrangler.jsonc        # Cloudflare Worker config: D1, R2, routes for proofball.xyz
 ```
 
 ---
@@ -129,7 +132,9 @@ proofball/
 |---------|--------------|
 | `npm run dev` | Start the dev server |
 | `npm test` | Run the Vitest suite |
-| `npm run matches:sync` | Pull all finished knockout matches from TxLINE into Postgres (idempotent) |
+| `npm run matches:sync` | Pull all finished knockout matches from TxLINE into D1 (idempotent; `D1_LOCAL=1` for the local DB) |
+| `npm run deploy` | Build with OpenNext and deploy the Worker to Cloudflare (pushes to `main` do this through GitHub Actions) |
+| `npm run db:migrate` | Apply `migrations/` to the production D1 database |
 | `npm run matches:warm` | Pre-warm the durable replay cache |
 | `npm run txline:auth` | One-time on-chain subscribe + activate, prints your `TXLINE_API_TOKEN` |
 | `npm run token:create` | One-time: create the $PROOF devnet SPL mint |
@@ -147,7 +152,8 @@ proofball/
 | Styling | Tailwind CSS, light and dark themes |
 | Blockchain | Solana (Devnet) — wallet sign-in, $PROOF SPL token, memo commitments |
 | Data | TxLINE (TxOdds) live odds + scores feed |
-| Storage | Postgres (results, picks), Redis (leaderboard, feed cache) |
+| Hosting | Cloudflare Workers via OpenNext (`@opennextjs/cloudflare`) |
+| Storage | Cloudflare D1 (results, picks, leaderboard, ledger, cache), R2 (whitepaper) |
 | Testing | Vitest |
 
 ---

@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { connection, proofMint, treasuryOwner } from "@/lib/token";
-import { getRedis, rateLimit, clientIp } from "@/lib/redis";
+import { rateLimit, clientIp } from "@/lib/kv";
+import { getDb } from "@/lib/d1";
 import { PROOF, PROOF_DECIMALS } from "@/lib/economy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const BASE = 10 ** PROOF_DECIMALS;
-const CREDITED = "proofball:topups"; // Redis SET of already-credited tx signatures
 
 /**
  * Top up: the reverse of cash-out. The player signs a real on-chain transfer of
@@ -120,16 +120,20 @@ export async function POST(req: Request) {
     );
   }
 
-  // Idempotency: credit a given signature at most once. SADD returns 1 on first
-  // insert, 0 if it was already there. Fail closed if Redis is unavailable — we
-  // must never risk a double-credit of a valid on-chain deposit.
-  const r = getRedis();
-  if (!r) {
+  // Idempotency: credit a given signature at most once. The insert changes one row
+  // the first time and none after that. Fail closed if the database is unavailable,
+  // we must never risk a double-credit of a valid on-chain deposit.
+  const db = getDb();
+  if (!db) {
     return NextResponse.json({ error: "top-up tracking unavailable" }, { status: 503 });
   }
   let firstTime: number;
   try {
-    firstTime = (await r.sadd(CREDITED, signature)) as number;
+    const res = await db
+      .prepare("INSERT OR IGNORE INTO topups (signature, created_at) VALUES (?1, ?2)")
+      .bind(signature, Date.now())
+      .run();
+    firstTime = res.meta.changes;
   } catch {
     return NextResponse.json({ error: "top-up tracking unavailable" }, { status: 503 });
   }
