@@ -24,8 +24,8 @@
     { "binding": "ASSETS_BUCKET", "bucket_name": "proofball-assets" }
   ],
   "routes": [
-    { "pattern": "proofball.xyz/*", "zone_name": "proofball.xyz" },
-    { "pattern": "www.proofball.xyz/*", "zone_name": "proofball.xyz" }
+    { "pattern": "proofball.xyz", "custom_domain": true },
+    { "pattern": "www.proofball.xyz", "custom_domain": true }
   ],
   "observability": { "enabled": true }
 }
