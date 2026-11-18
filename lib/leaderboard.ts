@@ -1,18 +1,16 @@
-import { getRedis } from "./redis";
+import { getDb } from "./d1";
 
 /**
  * The GLOBAL leaderboard , the multi-user heart of the app. Every player's
- * points live in a Redis sorted set (score = coins) plus a hash of streaks, so:
+ * points live in the D1 `leaderboard` table (name, coins, streak), so:
  *   • all users see the same ranking (not a per-browser fake list),
  *   • points persist across reloads / sessions and are restored on sign-in,
  *   • it scales to many concurrent users on one shared store.
  *
  * There is no seed / demo data: the board only ever shows real players who have
- * connected a wallet and made a call. If Redis is unavailable it returns empty.
+ * connected a wallet and made a call. If the database is unavailable it returns empty.
  */
 
-const ZKEY = "proofball:lb:coins"; // ZSET  member=name  score=coins
-const HKEY = "proofball:lb:streak"; // HASH  name → streak
 
 export interface Leader {
   name: string;
@@ -22,34 +20,31 @@ export interface Leader {
 
 /** Upsert a player's coins + streak. Coins is the ranking key. */
 export async function submitScore(name: string, coins: number, streak: number): Promise<void> {
-  const r = getRedis();
-  if (!r || !name) return;
+  const db = getDb();
+  if (!db || !name) return;
   try {
-    const pipe = r.pipeline();
-    pipe.zadd(ZKEY, coins, name);
-    pipe.hset(HKEY, name, String(streak));
-    await pipe.exec();
+    await db
+      .prepare(
+        `INSERT INTO leaderboard (name, coins, streak) VALUES (?1, ?2, ?3)
+         ON CONFLICT (name) DO UPDATE SET coins = excluded.coins, streak = excluded.streak`,
+      )
+      .bind(name, Math.round(coins), Math.round(streak))
+      .run();
   } catch {
     /* ignore , leaderboard is best-effort */
   }
 }
 
-/** Top N real players, highest coins first. Empty if Redis is unavailable. */
+/** Top N real players, highest coins first. Empty if the database is unavailable. */
 export async function topLeaders(n = 10): Promise<Leader[]> {
-  const r = getRedis();
-  if (!r) return [];
+  const db = getDb();
+  if (!db) return [];
   try {
-    const raw = await r.zrevrange(ZKEY, 0, n - 1, "WITHSCORES"); // [name, score, name, score, …]
-    const streaks = await r.hgetall(HKEY);
-    const out: Leader[] = [];
-    for (let i = 0; i < raw.length; i += 2) {
-      out.push({
-        name: raw[i],
-        coins: Math.round(Number(raw[i + 1])),
-        streak: Number(streaks[raw[i]] ?? 0),
-      });
-    }
-    return out;
+    const { results } = await db
+      .prepare("SELECT name, coins, streak FROM leaderboard ORDER BY coins DESC, name DESC LIMIT ?1")
+      .bind(n)
+      .all<Leader>();
+    return results.map((r) => ({ name: r.name, coins: Number(r.coins), streak: Number(r.streak) }));
   } catch {
     return [];
   }
@@ -57,13 +52,14 @@ export async function topLeaders(n = 10): Promise<Leader[]> {
 
 /** A single player's stored points, so we can restore them on sign-in. */
 export async function getUserScore(name: string): Promise<Leader | null> {
-  const r = getRedis();
-  if (!r || !name) return null;
+  const db = getDb();
+  if (!db || !name) return null;
   try {
-    const coins = await r.zscore(ZKEY, name);
-    if (coins == null) return null;
-    const streak = await r.hget(HKEY, name);
-    return { name, coins: Math.round(Number(coins)), streak: Number(streak ?? 0) };
+    const r = await db
+      .prepare("SELECT name, coins, streak FROM leaderboard WHERE name = ?1")
+      .bind(name)
+      .first<Leader>();
+    return r ? { name: r.name, coins: Number(r.coins), streak: Number(r.streak) } : null;
   } catch {
     return null;
   }

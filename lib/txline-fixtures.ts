@@ -1,6 +1,6 @@
 import { getCredentials, TXLINE } from "./txline-auth";
 import { simInPlayProbs } from "./winprob";
-import { cacheGetJSON, cacheSetJSON } from "./redis";
+import { cacheGetJSON, cacheSetJSON } from "./kv";
 import type { Frame, Phase } from "./types";
 
 /**

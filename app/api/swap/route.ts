@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
 import { mintProof, proofBalance, proofMint, explorerTx } from "@/lib/token";
-import { rateLimit, clientIp } from "@/lib/redis";
+import { rateLimit, clientIp } from "@/lib/kv";
 import { PROOF, MAX_CASHOUT } from "@/lib/economy";
 
 export const runtime = "nodejs";

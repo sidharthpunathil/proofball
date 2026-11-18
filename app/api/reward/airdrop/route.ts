@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
 import { mintProof, proofBalance, proofMint, explorerTx } from "@/lib/token";
-import { getRedis, rateLimit, clientIp } from "@/lib/redis";
+import { rateLimit, clientIp } from "@/lib/kv";
+import { getDb } from "@/lib/d1";
 import { resolveWallet } from "@/lib/auth";
 import { PROOF } from "@/lib/economy";
 import { recordAirdrop, getAirdropRecord } from "@/lib/airdrops";
@@ -9,8 +10,8 @@ import { recordAirdrop, getAirdropRecord } from "@/lib/airdrops";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// SET of wallets that have claimed a welcome-airdrop slot (also counts the cap).
-const KEY = "proofball:airdropped";
+// D1 table `airdrop_claims`: wallets that claimed a welcome-airdrop slot (its row
+// count is the cap counter).
 
 /** GET /api/reward/airdrop?wallet=X -> the wallet's on-chain $PROOF balance. */
 export async function GET(req: Request) {
@@ -25,11 +26,11 @@ export async function GET(req: Request) {
  * POST { wallet } -> mints the one-time welcome airdrop of $PROOF to a fresh
  * wallet. Idempotent across THREE independent guards, because the mint is real
  * on-chain value and a single flag is not enough:
- *   1. Atomic SADD claim (below): the same wallet can't claim two slots, even
+ *   1. Atomic claim (below): the same wallet can't claim two slots, even
  *      under concurrent calls.
  *   2. On-chain balance gate: we never mint to a wallet that already holds the
- *      airdrop. This is the DURABLE source of truth — it survives a wiped Redis
- *      SET and a prior mint that landed on-chain but timed out on confirmation.
+ *      airdrop. This is the DURABLE source of truth — it survives a wiped claims
+ *      table and a prior mint that landed on-chain but timed out on confirmation.
  *   3. Error handling that never re-opens a landed mint: on a mint error we
  *      re-read the balance and only release the slot when nothing was minted.
  * (2)+(3) close the double-airdrop bug: the old code did `srem` on any error,
@@ -40,13 +41,13 @@ export async function POST(req: Request) {
   if (!proofMint()) {
     return NextResponse.json({ error: "token not configured" }, { status: 503 });
   }
-  const r = getRedis();
-  if (!r) {
+  const db = getDb();
+  if (!db) {
     return NextResponse.json({ error: "airdrop tracking unavailable" }, { status: 503 });
   }
 
   // Anti-abuse: mints spend real (fee-payer) SOL on ATA rent + can farm $PROOF to
-  // freshly generated wallets. The per-wallet SADD guard below only blocks the SAME
+  // freshly generated wallets. The per-wallet claim guard below only blocks the SAME
   // wallet twice — it does nothing against Sybil addresses — so bound the burst rate
   // per source IP AND globally per hour. (Not a substitute for wallet-ownership proof;
   // it caps the blast radius of an unauthenticated caller.)
@@ -75,15 +76,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid wallet" }, { status: 400 });
   }
 
-  // Atomic: add to the set and get this wallet's 1-indexed position, or -1 if it
-  // was already present. Running SADD + SCARD in one Lua call makes the cap check
-  // race-free, since Redis executes the whole script atomically.
-  const CLAIM = `local added = redis.call('SADD', KEYS[1], ARGV[1])
-if added == 0 then return -1 end
-return redis.call('SCARD', KEYS[1])`;
+  // Atomic: insert the claim and read this wallet's 1-indexed position, or -1 if it
+  // was already present. D1 runs a batch as one transaction, so the insert and the
+  // count can't interleave with another request and the cap check stays race-free.
   let position: number;
   try {
-    position = Number(await r.eval(CLAIM, 1, KEY, wallet));
+    const [ins, cnt] = await db.batch<{ n: number }>([
+      db
+        .prepare("INSERT OR IGNORE INTO airdrop_claims (wallet, claimed_at) VALUES (?1, ?2)")
+        .bind(wallet, Date.now()),
+      db.prepare("SELECT COUNT(*) AS n FROM airdrop_claims"),
+    ]);
+    position = ins.meta.changes === 0 ? -1 : Number(cnt.results[0]?.n ?? 0);
   } catch {
     return NextResponse.json({ error: "airdrop tracking unavailable" }, { status: 503 });
   }
@@ -117,7 +121,7 @@ return redis.call('SCARD', KEYS[1])`;
   if (!(await rateLimit("airdrop:global", 300, 3600))) {
     // Release the slot so a genuine user can still claim once the window resets.
     try {
-      await r.srem(KEY, wallet);
+      await db.prepare("DELETE FROM airdrop_claims WHERE wallet = ?1").bind(wallet).run();
     } catch {
       /* ignore */
     }
@@ -125,10 +129,10 @@ return redis.call('SCARD', KEYS[1])`;
   }
 
   // DURABLE guard (source of truth): never mint to a wallet that already holds the
-  // airdrop. On-chain balance survives a wiped Redis SET AND a prior mint that landed
+  // airdrop. On-chain balance survives a wiped claims table AND a prior mint that landed
   // on-chain but timed out on confirmation — both of which previously let the same
-  // wallet be airdropped a second time. (This wallet just claimed a fresh SADD slot,
-  // so an existing balance means the SET didn't remember it — fund-once still holds.)
+  // wallet be airdropped a second time. (This wallet just claimed a fresh slot,
+  // so an existing balance means the claims table didn't remember it — fund-once still holds.)
   const prior = await proofBalance(wallet);
   if (prior >= PROOF.airdrop) {
     await recordAirdrop({
@@ -173,7 +177,7 @@ return redis.call('SCARD', KEYS[1])`;
     // A mint that THREW may still have LANDED on-chain: spl-token confirms against a
     // blockhash window that can lapse while the tx confirms a moment later. Re-read the
     // balance before deciding. If the airdrop is there, KEEP the claim and record it —
-    // do NOT `srem` (removing it is exactly what let a reconnect mint a second 1000).
+    // do NOT release the claim (removing it is exactly what let a reconnect mint a second 1000).
     // Only release the slot when nothing landed, so a genuine pre-mint failure (e.g.
     // fee-payer out of SOL) can still be retried without ever double-minting.
     let landed = 0;
@@ -204,7 +208,7 @@ return redis.call('SCARD', KEYS[1])`;
     }
     // Nothing was minted → safe to release the slot for a real retry.
     try {
-      await r.srem(KEY, wallet);
+      await db.prepare("DELETE FROM airdrop_claims WHERE wallet = ?1").bind(wallet).run();
     } catch {
       /* ignore */
     }

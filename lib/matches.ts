@@ -1,12 +1,12 @@
-import { getPool } from "./db";
+import { getDb } from "./d1";
 import { teamMeta } from "./teams";
 import type { Fixture } from "./txline-fixtures";
 
 /**
- * Read side of the finished-match cache (Postgres, populated by
+ * Read side of the finished-match cache (D1 table `matches`, populated by
  * `npm run matches:sync`). Everything here degrades gracefully: if the DB is
  * unreachable or empty, callers fall back to the curated fixtures, so a missing
- * Postgres never breaks the app , it just shows fewer past matches.
+ * database never breaks the app , it just shows fewer past matches.
  */
 
 interface MatchRow {
@@ -16,7 +16,7 @@ interface MatchRow {
   round_rank: number;
   home_name: string;
   away_name: string;
-  start_time: string; // bigint comes back as string
+  start_time: number;
   score_h: number | null;
   score_a: number | null;
   winner: string | null;
@@ -46,16 +46,18 @@ const SELECT = `
   SELECT fixture_id, competition, round, round_rank, home_name, away_name,
          start_time, score_h, score_a, winner
   FROM matches
-  WHERE finished = TRUE
+  WHERE finished = 1
 `;
 
 /** All finished matches, latest rounds first then most recent kickoff first. */
 export async function getFinishedMatches(): Promise<Fixture[]> {
+  const db = getDb();
+  if (!db) return [];
   try {
-    const { rows } = await getPool().query<MatchRow>(
-      `${SELECT} ORDER BY round_rank DESC, start_time DESC`
-    );
-    return rows.map(toFixture);
+    const { results } = await db
+      .prepare(`${SELECT} ORDER BY round_rank DESC, start_time DESC`)
+      .all<MatchRow>();
+    return results.map(toFixture);
   } catch {
     return [];
   }
@@ -81,12 +83,11 @@ export async function getFinishedMatchesByRound(): Promise<RoundGroup[]> {
 
 /** A single finished match by fixture id, or null if not cached / DB down. */
 export async function getDbMatch(id: string): Promise<Fixture | null> {
+  const db = getDb();
+  if (!db) return null;
   try {
-    const { rows } = await getPool().query<MatchRow>(
-      `${SELECT} AND fixture_id = $1 LIMIT 1`,
-      [id]
-    );
-    return rows[0] ? toFixture(rows[0]) : null;
+    const row = await db.prepare(`${SELECT} AND fixture_id = ?1 LIMIT 1`).bind(id).first<MatchRow>();
+    return row ? toFixture(row) : null;
   } catch {
     return null;
   }

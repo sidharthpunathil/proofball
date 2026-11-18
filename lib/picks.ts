@@ -1,4 +1,4 @@
-import { getPool } from "./db";
+import { getDb } from "./d1";
 import type { Prediction } from "./types";
 
 /**
@@ -11,41 +11,7 @@ import type { Prediction } from "./types";
  * tab switches and devices. Like the matches cache, every call is wrapped so a
  * DB outage degrades to the localStorage cache instead of throwing.
  */
-export const PICKS_DDL = `
-CREATE TABLE IF NOT EXISTS picks (
-  wallet      TEXT   NOT NULL,
-  pick_id     TEXT   NOT NULL,
-  dir         TEXT   NOT NULL,          -- 'up' | 'down'
-  status      TEXT   NOT NULL,          -- 'won' | 'lost'
-  delta       REAL,                     -- win-prob change at settle
-  reward      INT    NOT NULL DEFAULT 0,-- +winnings on a win, -stake on a loss
-  fixture_id  TEXT,
-  verify_url  TEXT,
-  at_minute   INT,                      -- match minute the call was committed
-  created_at  BIGINT NOT NULL,
-  settled_at  BIGINT NOT NULL,
-  PRIMARY KEY (wallet, pick_id)
-);
-CREATE INDEX IF NOT EXISTS picks_wallet_settled ON picks (wallet, settled_at DESC);
--- Backfill the column on tables created before at_minute existed.
-ALTER TABLE picks ADD COLUMN IF NOT EXISTS at_minute INT;
-`;
-
-// Ensure the table exists once per process (cached promise; reset on failure so
-// a transient DB blip can be retried rather than poisoning every later call).
-let schemaReady: Promise<void> | null = null;
-function ensurePicksSchema(): Promise<void> {
-  if (!schemaReady) {
-    schemaReady = getPool()
-      .query(PICKS_DDL)
-      .then(() => {})
-      .catch((e) => {
-        schemaReady = null;
-        throw e;
-      });
-  }
-  return schemaReady;
-}
+// Schema lives in migrations/0001_init.sql (D1).
 
 /** A settled call as it crosses the API boundary (client → DB). */
 export interface PickInput {
@@ -63,14 +29,17 @@ export interface PickInput {
 
 /** Append (idempotent) a settled call for a wallet. No-throw: DB down → skip. */
 export async function savePick(wallet: string, p: PickInput): Promise<void> {
+  const db = getDb();
+  if (!db) return;
   try {
-    await ensurePicksSchema();
-    await getPool().query(
-      `INSERT INTO picks
-         (wallet, pick_id, dir, status, delta, reward, fixture_id, verify_url, at_minute, created_at, settled_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-       ON CONFLICT (wallet, pick_id) DO NOTHING`,
-      [
+    await db
+      .prepare(
+        `INSERT INTO picks
+           (wallet, pick_id, dir, status, delta, reward, fixture_id, verify_url, at_minute, created_at, settled_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+         ON CONFLICT (wallet, pick_id) DO NOTHING`,
+      )
+      .bind(
         wallet,
         p.id,
         p.dir,
@@ -82,8 +51,8 @@ export async function savePick(wallet: string, p: PickInput): Promise<void> {
         p.atMinute ?? null,
         p.createdAt ?? Date.now(),
         p.settledAt ?? Date.now(),
-      ]
-    );
+      )
+      .run();
   } catch {
     /* DB unavailable — the localStorage cache still holds the call */
   }
@@ -100,24 +69,28 @@ const EMPTY: PicksLoad = { picks: [], earned: 0, won: 0, lost: 0 };
 
 /** Load a wallet's recent calls + the lifetime earned/W-L aggregate. */
 export async function loadPicks(wallet: string, limit = 30): Promise<PicksLoad> {
+  const db = getDb();
+  if (!db) return EMPTY;
   try {
-    await ensurePicksSchema();
-    const pool = getPool();
-    const [recent, agg] = await Promise.all([
-      pool.query(
-        `SELECT pick_id, dir, status, delta, reward, verify_url, at_minute, created_at, settled_at
-           FROM picks WHERE wallet = $1 ORDER BY settled_at DESC LIMIT $2`,
-        [wallet, limit]
-      ),
-      pool.query(
-        `SELECT COALESCE(SUM(reward), 0) AS earned,
-                COUNT(*) FILTER (WHERE status = 'won')  AS won,
-                COUNT(*) FILTER (WHERE status = 'lost') AS lost
-           FROM picks WHERE wallet = $1`,
-        [wallet]
-      ),
+    const [recent, agg] = await db.batch<Record<string, unknown>>([
+      db
+        .prepare(
+          `SELECT pick_id, dir, status, delta, reward, verify_url, at_minute, created_at, settled_at
+             FROM picks WHERE wallet = ?1 ORDER BY settled_at DESC LIMIT ?2`,
+        )
+        .bind(wallet, limit),
+      db
+        .prepare(
+          `SELECT COALESCE(SUM(reward), 0) AS earned,
+                  SUM(CASE WHEN status = 'won'  THEN 1 ELSE 0 END) AS won,
+                  SUM(CASE WHEN status = 'lost' THEN 1 ELSE 0 END) AS lost
+             FROM picks WHERE wallet = ?1`,
+        )
+        .bind(wallet),
     ]);
-    const picks: Prediction[] = recent.rows.map((r) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows = recent.results as any[];
+    const picks: Prediction[] = rows.map((r) => ({
       id: String(r.pick_id),
       prompt: "",
       createdAt: Number(r.created_at),
@@ -131,7 +104,7 @@ export async function loadPicks(wallet: string, limit = 30): Promise<PicksLoad> 
       reward: Number(r.reward),
       verifyUrl: r.verify_url ?? undefined,
     }));
-    const a = agg.rows[0] ?? {};
+    const a = (agg.results[0] ?? {}) as Record<string, unknown>;
     return {
       picks,
       earned: Number(a.earned ?? 0),

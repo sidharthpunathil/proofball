@@ -1,0 +1,37 @@
+name: Deploy to Cloudflare
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: 3bb4c0fb992fde7957cc9ce081aa11c6
+      # Public values, inlined into the client bundle at build time.
+      NEXT_PUBLIC_SITE_URL: https://proofball.xyz
+      NEXT_PUBLIC_APP_URL: https://proofball.xyz
+      NEXT_PUBLIC_SOLANA_CLUSTER: devnet
+      NEXT_PUBLIC_PRIVY_APP_ID: cmrner22k02hq0cjosk3s1cdt
+      NEXT_PUBLIC_PROOF_MINT: EYYob1mBT42gPmbRM3ca3StVJiCq1S9d8RGCAKMYB2X1
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - run: npx tsc --noEmit
+      - run: npm test
+      - name: Apply D1 migrations
+        run: npx wrangler d1 migrations apply proofball --remote
+      - name: Build and deploy
+        run: npm run deploy

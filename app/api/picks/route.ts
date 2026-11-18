@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
 import { savePick, loadPicks, type PickInput } from "@/lib/picks";
-import { rateLimit, clientIp } from "@/lib/redis";
+import { rateLimit, clientIp } from "@/lib/kv";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

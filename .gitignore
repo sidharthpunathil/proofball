@@ -52,3 +52,7 @@ skills-lock.json
 /.deepsec/
 
 idea.txt
+# Cloudflare / OpenNext build output
+/.open-next/
+/.wrangler/
+.dev.vars*

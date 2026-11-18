@@ -4,13 +4,10 @@
  *
  * Run:  npm run airdrops
  *
- * Reads the same Redis HASH the /api/reward/airdrop route writes
- * (proofball:airdrops). Point REDIS_URL at prod to inspect the live ledger.
+ * Reads the same D1 table the /api/reward/airdrop route writes (`airdrops`),
+ * from the remote database by default (D1_LOCAL=1 for the local one).
  */
-import Redis from "ioredis";
-
-const LEDGER_KEY = "proofball:airdrops";
-const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:63799";
+import { d1Query } from "./d1.mjs";
 
 interface AirdropRecord {
   wallet: string;
@@ -23,12 +20,9 @@ interface AirdropRecord {
 }
 
 async function main() {
-  // Offline queue ON (the default): this is a one-shot CLI, so let the first
-  // command wait for the connection rather than racing it (as the app does).
-  const r = new Redis(REDIS_URL, { maxRetriesPerRequest: 2, connectTimeout: 4000 });
-  const all = await r.hgetall(LEDGER_KEY);
-  const recs: AirdropRecord[] = Object.values(all)
-    .map((v) => {
+  const rows = d1Query("SELECT record FROM airdrops") as { record: string }[];
+  const recs: AirdropRecord[] = rows
+    .map(({ record: v }) => {
       try {
         return JSON.parse(v) as AirdropRecord;
       } catch {
@@ -63,7 +57,6 @@ async function main() {
     }
     console.log("");
   }
-  await r.quit();
 }
 
 main().catch((e) => {

@@ -12,13 +12,10 @@ function normalizeOrigin(raw: string): string {
 /**
  * Canonical origin, resolved in priority order:
  *   1. NEXT_PUBLIC_SITE_URL — explicit override (set this in prod).
- *   2. RAILWAY_PUBLIC_DOMAIN — auto-provided on Railway deploys.
- *   3. proofball.xyz — the production fallback.
+ *   2. proofball.xyz — the production fallback.
  */
 export const SITE_URL: string = normalizeOrigin(
-  process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.RAILWAY_PUBLIC_DOMAIN ||
-    "proofball.xyz",
+  process.env.NEXT_PUBLIC_SITE_URL || "proofball.xyz",
 );
 
 export const SITE_NAME = "ProofBall";

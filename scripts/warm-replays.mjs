@@ -3,24 +3,20 @@
  * are playable in devnet without ever hitting the rate-limited TxLINE feed at
  * click-time (see the cache in app/api/txline/stream/route.ts).
  *
- *   docker compose up -d                 # Postgres + Redis
  *   NEXT_DIST_DIR=.next-run PORT=3200 npm run dev   # a running app instance
- *   npm run matches:warm                 # warms that instance's Redis
+ *   D1_LOCAL=1 npm run matches:warm      # warms that instance's cache
  *
  * How it works: hitting the SSE stream once makes the server build the real
- * replay and write it to Redis (that write happens as the route runs, before we
- * read many frames), so a brief connection per fixture is enough. The fixture
- * ids come from Postgres (`matches`); the app whose Redis gets warmed is chosen
+ * replay and write it to the D1 cache (that write happens as the route runs,
+ * before we read many frames), so a brief connection per fixture is enough. The
+ * fixture ids come from D1 (`matches`); the app whose cache gets warmed is chosen
  * by WARM_BASE_URL. To warm production, point WARM_BASE_URL at the live app:
  *
- *   WARM_BASE_URL=https://proofball-production.up.railway.app npm run matches:warm
+ *   WARM_BASE_URL=https://proofball.xyz npm run matches:warm
  *
  * Idempotent and safe to re-run; finished results are immutable.
  */
-import pg from "pg";
-
-const DATABASE_URL =
-  process.env.DATABASE_URL || "postgresql://proofball:proofball@localhost:55432/proofball";
+import { d1Query } from "./d1.mjs";
 const BASE = (process.env.WARM_BASE_URL || "http://localhost:3200").replace(/\/$/, "");
 // How long to hold each stream open. The cache write happens server-side almost
 // immediately; a couple of seconds is ample headroom for a cold feed fetch.
@@ -57,11 +53,9 @@ async function warmOne(id) {
 }
 
 async function main() {
-  const pool = new pg.Pool({ connectionString: DATABASE_URL, max: 4, connectionTimeoutMillis: 5000 });
-  const { rows } = await pool.query(
-    "SELECT fixture_id, home_name, away_name FROM matches WHERE finished = TRUE ORDER BY round_rank DESC, start_time DESC"
+  const rows = d1Query(
+    "SELECT fixture_id, home_name, away_name FROM matches WHERE finished = 1 ORDER BY round_rank DESC, start_time DESC"
   );
-  await pool.end();
   console.log(`→ warming ${rows.length} finished-match replays via ${BASE} …`);
 
   let ok = 0;

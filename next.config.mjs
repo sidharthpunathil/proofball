@@ -23,3 +23,7 @@ const nextConfig = {
 };
 
 export default nextConfig;
+
+// Give `next dev` local Cloudflare bindings (D1, R2, assets) via wrangler.jsonc.
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+initOpenNextCloudflareForDev();

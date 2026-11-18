@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildCommitment } from "@/lib/commit";
-import { rateLimit, clientIp } from "@/lib/redis";
+import { rateLimit, clientIp } from "@/lib/kv";
 
 export const runtime = "nodejs";
 

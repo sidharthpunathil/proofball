@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# Stop everything ./start.sh brought up: the Next.js server (whole process tree)
-# and the Docker data stores. Postgres/Redis data persists in named volumes.
+# Stop what ./start.sh brought up: the Next.js server (whole process tree).
+# Local D1/R2 data persists in .wrangler/state.
 #
-#   ./stop.sh            # stop app + `docker compose down` (keep data)
-#   ./stop.sh --app-only # stop ONLY the app, leave Postgres + Redis running
-#   ./stop.sh --volumes  # also delete DB/Redis volumes for a fresh slate
+#   ./stop.sh            # stop the app (keep local data)
+#   ./stop.sh --app-only # same thing; kept so ./restart.sh keeps working
+#   ./stop.sh --volumes  # also delete the local D1/R2 state for a fresh slate
 #
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -15,8 +15,7 @@ APP_PID_FILE="$RUN_DIR/app.pid"
 
 log() { printf '\033[1;36m▸\033[0m %s\n' "$*"; }
 
-# Flags are order-independent. --app-only skips the Docker teardown entirely (so
-# ./restart.sh can bounce the server while Postgres + Redis stay warm).
+# Flags are order-independent. --app-only skips the data cleanup entirely.
 APP_ONLY=0
 VOLUMES=0
 while [ $# -gt 0 ]; do
@@ -56,19 +55,10 @@ else
   log "No app pidfile — server not tracked (skipping)."
 fi
 
-# 2. Data stores (skipped entirely with --app-only, so a restart keeps them warm).
-if [ "$APP_ONLY" = "1" ]; then
-  log "Left Postgres + Redis running (--app-only)."
-elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-  if [ "$VOLUMES" = "1" ]; then
-    log "Stopping Postgres + Redis and deleting volumes (docker compose down -v)…"
-    docker compose down -v
-  else
-    log "Stopping Postgres + Redis (docker compose down)…"
-    docker compose down
-  fi
-else
-  log "Docker not available — nothing to stop there."
+# 2. Local data (only with --volumes).
+if [ "$APP_ONLY" != "1" ] && [ "$VOLUMES" = "1" ]; then
+  log "Deleting local D1/R2 state (.wrangler/state)…"
+  rm -rf .wrangler/state
 fi
 
 log "ProofBall stopped."

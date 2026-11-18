@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "proofball",
+  "account_id": "3bb4c0fb992fde7957cc9ce081aa11c6",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    { "binding": "WORKER_SELF_REFERENCE", "service": "proofball" }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "proofball",
+      "database_id": "d162a0cf-2fa1-41aa-8ece-0b0344fea7e2",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    { "binding": "ASSETS_BUCKET", "bucket_name": "proofball-assets" }
+  ],
+  "routes": [
+    { "pattern": "proofball.xyz/*", "zone_name": "proofball.xyz" },
+    { "pattern": "www.proofball.xyz/*", "zone_name": "proofball.xyz" }
+  ],
+  "observability": { "enabled": true }
+}

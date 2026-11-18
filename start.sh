@@ -2,19 +2,19 @@
 #
 # Start ProofBall locally, end to end:
 #   1. npm install            (only if node_modules is missing)
-#   2. docker compose up -d    Postgres (:55432) + Redis (:63799)
-#   3. npm run matches:sync    populate the finished-match cache from TxLINE
-#   4. npm run dev             Next.js server, backgrounded → http://localhost:31415
+#   2. npm run db:migrate:local   apply the D1 schema to the local database
+#   3. npm run matches:sync       populate the finished-match cache from TxLINE
+#   4. npm run dev                Next.js server, backgrounded → http://localhost:31415
 #
-# The app degrades gracefully with no Docker, so a missing daemon is a warning,
-# not a hard stop (you just get fewer past matches + a local-only leaderboard).
+# `next dev` gets a local D1 + R2 from wrangler (state lives in .wrangler/), so
+# there is nothing to run in Docker. A failed sync is a warning, not a hard stop.
 #
 #   ./start.sh                 # dev server on :31415 (a deliberately odd default,
 #                              #   so it never fights another dev server on :3000)
 #   ./start.sh --prod          # production build + `next start`
 #   PORT=4000 ./start.sh       # pin a different port…
 #   ./start.sh --port 4000     # …or pass it inline
-#   ./restart.sh               # bounce just the app (keeps Postgres/Redis up)
+#   ./restart.sh               # bounce just the app
 #   ./stop.sh                  # tear it all back down
 #
 # Pinning the port keeps the URL stable across restarts — an old browser tab on
@@ -67,15 +67,11 @@ if [ ! -d node_modules ]; then
   npm install
 fi
 
-# 2. Data stores + 3. cache sync — best-effort, gated on a working Docker daemon.
-if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-  log "Starting Postgres + Redis (docker compose up -d)…"
-  docker compose up -d --wait 2>/dev/null || docker compose up -d
-  log "Syncing finished-match cache (npm run matches:sync)…"
-  npm run matches:sync || log "matches:sync failed — continuing (past matches may be sparse)."
-else
-  log "Docker not available — skipping DB/Redis. App runs with graceful fallbacks."
-fi
+# 2. Local D1 schema + 3. cache sync, best-effort.
+log "Applying D1 schema locally (npm run db:migrate:local)…"
+npm run db:migrate:local || log "Local D1 migration failed, continuing with graceful fallbacks."
+log "Syncing finished-match cache into local D1 (matches:sync)…"
+D1_LOCAL=1 npm run matches:sync || log "matches:sync failed, continuing (past matches may be sparse)."
 
 # 4. App — backgrounded, with its pid recorded so ./stop.sh can find it.
 if [ "$MODE" = "prod" ]; then
